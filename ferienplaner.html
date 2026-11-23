@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="de-CH">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferienplaner 2027 – Veloplus Basel</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1f2933; --muted: #6b7280; --line: #e3e6ea;
+    --accent: #1d4ed8; --danger: #dc2626; --ok: #15803d;
+    --weekend: #f0f1f3; --holiday: #fff1f1; --holiday-text: #b42318;
+    --school: #e0f2fe; --school-edge: #7dd3fc;
+    --select: #fde68a; --select-edge: #d97706;
+    --radius: 12px; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.4; }
+  button { font: inherit; cursor: pointer; }
+  select, input { font: inherit; }
+
+  header.top { background: #111827; color: #fff; padding: 14px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; }
+  header.top h1 { margin: 0; font-size: 20px; font-weight: 700; }
+  .who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .who label { font-size: 14px; color: #cbd5e1; }
+  .who select { padding: 8px 12px; border-radius: 8px; border: 2px solid #374151; background: #1f2937; color: #fff; min-width: 170px; }
+  .who select.attention { border-color: #f59e0b; animation: pulse 1s ease 2; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(245,158,11,.35); } }
+  .admin-badge { background: #f59e0b; color: #111827; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 999px; display: none; }
+  .admin-badge.on { display: inline-block; }
+  .logout { background: transparent; color: #cbd5e1; border: 1px solid #374151; border-radius: 8px; padding: 6px 10px; font-size: 13px; display: none; }
+  .logout.on { display: inline-block; }
+  .conn { margin-left: auto; font-size: 13px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; }
+  .conn .dot { width: 10px; height: 10px; border-radius: 50%; background: #9ca3af; }
+  .conn.live .dot { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+  .conn.off .dot { background: #ef4444; }
+
+  .banner { margin: 16px 20px 0; padding: 12px 16px; border-radius: var(--radius); font-size: 14px; display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .banner.on { display: flex; }
+  .banner .txt { flex: 1 1 300px; }
+  .error-banner { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .demo-banner { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; }
+  .phase-banner { background: #fefce8; color: #713f12; border: 1px solid #fde68a; }
+
+  .balance-banner { margin: 16px 20px 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; border-left: 8px solid #9ca3af; }
+  .balance-banner .big { font-size: 22px; font-weight: 800; }
+  .balance-banner .small { color: var(--muted); font-size: 14px; }
+  .balance-banner .bar { flex: 1 1 200px; height: 12px; background: #e5e7eb; border-radius: 999px; overflow: hidden; min-width: 160px; position: relative; }
+  .balance-banner .bar > div { height: 100%; width: 0; transition: width .3s; }
+
+  .tabs { margin: 16px 20px 0; display: none; gap: 8px; }
+  body.is-admin .tabs { display: flex; }
+  .tab { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 16px; font-weight: 700; color: var(--muted); }
+  .tab.on { background: #111827; color: #fff; border-color: #111827; }
+
+  main.layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; padding: 16px 20px 40px; align-items: start; }
+  @media (max-width: 1100px) { main.layout { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 16px; }
+  .card h3 { margin: 14px 0 8px; font-size: 14px; }
+
+  .cal-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .cal-nav h2 { margin: 0; font-size: 22px; min-width: 190px; text-align: center; flex: 1; }
+  .nav-btn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 8px 14px; font-weight: 600; }
+  .nav-btn:hover { background: #f3f4f6; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+
+  .cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .cal-head div { text-align: center; font-weight: 700; font-size: 13px; color: var(--muted); padding: 4px 0; }
+  .day { min-height: 110px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px;
+    display: flex; flex-direction: column; gap: 3px; cursor: pointer; position: relative; user-select: none; }
+  .day:hover { border-color: #93a4c3; }
+  .day.other { opacity: .5; }
+  .day.outside { opacity: .3; cursor: not-allowed; }
+  .day.school { box-shadow: inset 0 4px 0 var(--school-edge); }
+  .day.weekend { background: var(--weekend); }
+  .day.holiday { background: repeating-linear-gradient(45deg, var(--holiday), var(--holiday) 8px, #ffe4e4 8px, #ffe4e4 16px); border-color: #fecaca; }
+  .day.in-range { background: var(--select); border-color: var(--select-edge); }
+  .day.range-edge { outline: 3px solid var(--select-edge); outline-offset: -2px; }
+  .day .num { font-weight: 700; font-size: 13px; }
+  .day .hol-name { font-size: 11px; color: var(--holiday-text); font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+  .day .school-name { font-size: 10px; color: #0369a1; font-weight: 700; line-height: 1.1; }
+
+  .chip { border-radius: 6px; padding: 3px 6px; font-size: 12px; line-height: 1.2; display: flex; align-items: center; gap: 4px; cursor: pointer;
+    position: relative; border: 2px solid transparent; overflow: hidden; }
+  .chip .cn { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+  .chip.st-offen { background: #fff !important; color: #111827; }
+  .chip.st-zugeteilt { color: #fff; opacity: .8; }
+  .chip.st-bestaetigt { color: #fff; }
+  .chip.st-abgelehnt { color: #6b7280; background: repeating-linear-gradient(45deg, #f3f4f6 0 5px, #e5e7eb 5px 10px) !important; text-decoration: line-through; }
+  .chip.conflict { box-shadow: 0 0 0 2px var(--danger); }
+  .chip.free-day { opacity: .55; }
+  .prio { font-size: 10px; font-weight: 800; border-radius: 4px; padding: 0 4px; background: rgba(0,0,0,.18); flex-shrink: 0; }
+  .chip.st-offen .prio { background: #e5e7eb; }
+  .prio.must { background: #dc2626 !important; color: #fff; }
+
+  @media (max-width: 700px) {
+    .day { min-height: 70px; padding: 2px; }
+    .chip { padding: 1px 3px; font-size: 10px; }
+    .day .hol-name, .day .school-name { font-size: 9px; }
+    .cal-nav h2 { font-size: 18px; min-width: 0; }
+    main.layout, .balance-banner, .banner, .tabs { margin-left: 8px; margin-right: 8px; }
+    main.layout { padding-left: 0; padding-right: 0; }
+    header.top { padding: 12px; }
+    .conn { margin-left: 0; }
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 16px; height: 14px; border-radius: 4px; display: inline-block; border: 2px solid transparent; }
+
+  /* Übersicht (Gantt) */
+  .gantt-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table.gantt { border-collapse: collapse; font-size: 12px; user-select: none; }
+  table.gantt th, table.gantt td { border-right: 1px solid #eef0f3; border-bottom: 1px solid #eef0f3; padding: 0; text-align: center; }
+  table.gantt th.nm, table.gantt td.nm { position: sticky; left: 0; background: #fff; z-index: 2; text-align: left; padding: 4px 8px; white-space: nowrap; min-width: 130px; border-right: 2px solid var(--line); }
+  table.gantt th { font-weight: 700; color: var(--muted); padding: 3px 0; }
+  table.gantt td.c { width: 30px; min-width: 30px; height: 30px; position: relative; }
+  table.gantt .we { background: var(--weekend); }
+  table.gantt .hol { background: var(--holiday); }
+  table.gantt th.school { box-shadow: inset 0 -4px 0 var(--school-edge); }
+  table.gantt tr.grp td { background: #f8fafc; font-weight: 800; text-align: left; padding: 4px 8px; }
+  table.gantt td.c .blk { position: absolute; inset: 4px 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 800; cursor: grab; border-top: 2px solid transparent; border-bottom: 2px solid transparent; }
+  table.gantt td.c .blk.first { left: 2px; border-top-left-radius: 6px; border-bottom-left-radius: 6px; border-left: 2px solid transparent; }
+  table.gantt td.c .blk.last { right: 2px; border-top-right-radius: 6px; border-bottom-right-radius: 6px; border-right: 2px solid transparent; }
+  table.gantt td.c .blk.st-offen { background: #fff !important; color: #111827; }
+  table.gantt td.c .blk.st-zugeteilt { opacity: .8; }
+  table.gantt td.c .blk.st-abgelehnt { background: repeating-linear-gradient(45deg, #f3f4f6 0 4px, #d1d5db 4px 8px) !important; color: #6b7280; border-color: #9ca3af !important; }
+  table.gantt td.c .blk.conflict { box-shadow: inset 0 0 0 2px var(--danger); }
+  table.gantt td.c .blk.dragging { opacity: .6; outline: 2px dashed #111827; }
+  table.gantt td.c .blk.nc { opacity: .45; }
+  table.gantt tr.count td.c { font-weight: 800; font-size: 12px; color: #374151; }
+  table.gantt tr.count td.c.over { background: #fee2e2; color: var(--danger); }
+  table.gantt tr.count td.nm { font-weight: 700; color: var(--muted); }
+
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .field input, .field select, .field textarea { padding: 8px 10px; border: 1px solid #cbd2db; border-radius: 8px; background: #fff; font: inherit; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .admin-only { display: none !important; }
+  body.is-admin .admin-only { display: block !important; }
+  body.is-admin .admin-only.flex { display: flex !important; }
+  .btn { border: none; border-radius: 8px; padding: 10px 16px; font-weight: 700; background: var(--accent); color: #fff; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { background: #9ca3af; cursor: not-allowed; filter: none; }
+  .btn.secondary { background: #e5e7eb; color: #111827; }
+  .btn.danger { background: var(--danger); }
+  .btn.green { background: #16a34a; }
+  .btn.small { padding: 6px 10px; font-size: 13px; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  table.bal { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.bal th { text-align: left; color: var(--muted); font-weight: 700; padding: 4px; border-bottom: 2px solid var(--line); }
+  table.bal td { padding: 5px 4px; border-bottom: 1px solid var(--line); }
+  table.bal .r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .dot-c { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+
+  .wish-list { list-style: none; padding: 0; margin: 0; }
+  .wish-list li { border-bottom: 1px solid var(--line); padding: 8px 2px; display: flex; gap: 8px; align-items: center; }
+  .wish-list .body { flex: 1; min-width: 0; }
+  .wish-list .meta { font-size: 12px; color: var(--muted); }
+  .status { font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 999px; white-space: nowrap; }
+  .status.offen { background: #e5e7eb; color: #374151; }
+  .status.zugeteilt { background: #dbeafe; color: #1e40af; }
+  .status.bestaetigt { background: #dcfce7; color: #166534; }
+  .status.abgelehnt { background: #fee2e2; color: #991b1b; }
+  .empty { color: var(--muted); font-size: 14px; }
+
+  .rule-list { list-style: none; padding: 0; margin: 0 0 8px; font-size: 13px; }
+  .rule-list li { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .rule-list li .body { flex: 1; }
+  .x-btn { background: #fee2e2; color: var(--danger); border: none; border-radius: 6px; width: 26px; height: 26px; font-weight: 800; }
+  .add-box { background: #f8fafc; border: 1px dashed #cbd2db; border-radius: 8px; padding: 10px; }
+  .add-box .field { margin-bottom: 6px; }
+  .check-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 13px; }
+  .log { font-size: 13px; max-height: 260px; overflow: auto; }
+  .log li { margin-bottom: 4px; }
+
+  .action-bar { position: sticky; top: 0; z-index: 30; background: #111827; color: #fff; padding: 12px 20px;
+    display: none; align-items: center; gap: 12px; flex-wrap: wrap; box-shadow: 0 6px 20px rgba(0,0,0,.25); border-top: 3px solid #f59e0b; }
+  .action-bar.on { display: flex; }
+  .action-bar .info { flex: 1 1 300px; min-width: 0; }
+  .action-bar .info strong { font-size: 16px; }
+  .action-bar .sub { font-size: 13px; color: #cbd5e1; }
+  .action-bar .warn { font-size: 13px; color: #fca5a5; margin-top: 2px; }
+  .prio-pick { display: flex; gap: 4px; flex-wrap: wrap; }
+  .prio-pick button { border: 2px solid #4b5563; background: #1f2937; color: #fff; border-radius: 8px; padding: 8px 12px; font-weight: 700; }
+  .prio-pick button.on { border-color: #f59e0b; background: #f59e0b; color: #111827; }
+  .prio-pick button.must.on { background: #dc2626; border-color: #dc2626; color: #fff; }
+  .prio-pick button:disabled { opacity: .35; cursor: not-allowed; }
+  .prio-pick input { width: 64px; padding: 8px; border-radius: 8px; border: 2px solid #4b5563; background: #1f2937; color: #fff; }
+  .chip.flexwin { background: transparent !important; border-style: dashed; color: #111827; opacity: .85; }
+  table.gantt td.c .blk.flexwin { background: transparent !important; border-style: dashed !important; border-width: 2px; color: #111827; opacity: .7; }
+  .day.sperr { background: repeating-linear-gradient(-45deg, #f3f4f6, #f3f4f6 8px, #e5e7eb 8px, #e5e7eb 16px); border-color: #9ca3af; }
+  .day .sperr-name { font-size: 11px; color: #374151; font-weight: 800; }
+  table.gantt th.sperr { background: #4b5563; color: #fff; }
+  table.gantt td.c .ghost { position: absolute; inset: 6px 1px; border: 2px dashed; border-left: none; border-right: none; opacity: .55; }
+  table.gantt td.c .blk.moved::after { content: "↔"; position: absolute; top: -9px; left: 2px; font-size: 10px; color: #111827; background: #fde68a; border-radius: 4px; padding: 0 2px; }
+  .inline-check { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 8px; }
+  .action-bar .btn.secondary { background: #374151; color: #fff; }
+  .action-bar #saveWishBtn { background: #16a34a; padding: 12px 20px; }
+  .action-bar #saveWishBtn:disabled { background: #6b7280; }
+
+  .modal-back { position: fixed; inset: 0; background: rgba(17,24,39,.55); z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .modal-back.on { display: flex; }
+  .modal { background: #fff; border-radius: 14px; padding: 22px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 92vh; overflow: auto; }
+  .modal h3 { margin: 0 0 12px; font-size: 19px; }
+  .modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .modal input.pin { width: 100%; font-size: 24px; letter-spacing: 6px; text-align: center; padding: 10px; border: 2px solid #cbd2db; border-radius: 10px; text-transform: uppercase; }
+  .modal .err { color: var(--danger); font-size: 14px; min-height: 20px; margin-top: 6px; }
+  .modal.shake { animation: shake .35s; }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+  .toasts { position: fixed; bottom: 16px; left: 16px; z-index: 60; display: flex; flex-direction: column; gap: 8px; max-width: min(400px, calc(100vw - 32px)); }
+  .toast { background: #111827; color: #fff; padding: 12px 14px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); font-size: 14px; border-left: 6px solid #22c55e; animation: slidein .25s ease; }
+  .toast.err { border-left-color: #ef4444; }
+  .toast.info { border-left-color: #60a5fa; }
+  @keyframes slidein { from { transform: translateY(20px); opacity: 0; } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="top">
+    <h1>🏖️ Ferienplaner <span id="yearTitle"></span></h1>
+    <div class="who">
+      <label for="userSelect">Ich bin:</label>
+      <select id="userSelect"><option value="">– Bitte Namen wählen –</option></select>
+      <span class="admin-badge" id="adminBadge">ADMIN</span>
+      <button class="logout" id="logoutBtn">Abmelden</button>
+    </div>
+    <div class="conn" id="conn"><span class="dot"></span><span id="connText">Verbinde …</span></div>
+  </header>
+
+  <div class="action-bar" id="actionBar">
+    <div class="info">
+      <strong id="selTitle"></strong>
+      <div class="sub" id="selSub"></div>
+      <div class="warn" id="selWarn"></div>
+    </div>
+    <div class="prio-pick" id="modePick">
+      <button data-mode="fix" title="Genau diese Tage">📌 Genau diese Tage</button>
+      <button data-mode="flex" title="Irgendwo in diesem Zeitraum">🔀 Flexibel:</button>
+      <input type="number" id="flexLen" min="1" max="60" value="5" title="Anzahl Ferientage innerhalb des Zeitraums"> <span style="font-size:13px;color:#cbd5e1">Tage</span>
+    </div>
+    <div class="prio-pick" id="prioPick">
+      <button data-prio="must" class="must" title="Höchste Priorität – wird vor allen anderen Wünschen verteilt">⭐ Must</button>
+      <button data-prio="p1">Prio 1</button>
+      <button data-prio="p2">Prio 2</button>
+    </div>
+    <button class="btn secondary" id="cancelSelBtn">Abbrechen</button>
+    <button class="btn" id="saveWishBtn">Wunsch speichern</button>
+  </div>
+
+  <div class="banner error-banner" id="errorBanner"><div class="txt" id="errorText"></div></div>
+  <div class="banner demo-banner" id="demoBanner">
+    <div class="txt">🧪 <b>Demo-Modus:</b> Es ist keine Firestore-Datenbank verbunden. Alles wird nur <b>in diesem Browser</b> gespeichert. Admin-PIN in der Demo: <b>1234</b>. Kürzel = Passwort, siehe Reiter «👥 Team».</div>
+    <button class="btn secondary small" id="demoFillBtn">Testdaten erzeugen</button>
+    <button class="btn secondary small" id="demoResetBtn">Alles löschen</button>
+  </div>
+  <div class="banner phase-banner" id="phaseBanner"><div class="txt" id="phaseText"></div></div>
+
+  <div class="balance-banner" id="balanceBanner">
+    <div>
+      <div class="big" id="balanceText">Bitte oben Ihren Namen wählen</div>
+      <div class="small" id="balanceSub">Danach mit Ihrem Kürzel anmelden und Ferienwünsche eintragen.</div>
+    </div>
+    <div class="bar"><div id="balanceBar"></div></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-tab="kalender">📅 Kalender</button>
+    <button class="tab" data-tab="uebersicht">📊 Übersicht &amp; Planung</button>
+    <button class="tab" data-tab="team">👥 Team</button>
+  </div>
+
+  <main class="layout">
+    <section class="card" id="calCard">
+      <div class="cal-nav">
+        <button class="nav-btn" data-nav="-1" title="Vorheriger Monat">◀</button>
+        <h2 id="monthTitle"></h2>
+        <button class="nav-btn" data-nav="1" title="Nächster Monat">▶</button>
+      </div>
+      <p class="hint">So geht's: <b>1. Klick</b> auf den ersten Ferientag, <b>2. Klick</b> auf den letzten (auch in einem anderen Monat). Dann oben die <b>Priorität</b> wählen und <b>«Wunsch speichern»</b>. <b>⭐ Must</b> = höchste Priorität (wird zuerst verteilt). <b>🔀 Flexibel</b> = z.B. «irgendwo in diesen 4 Wochen 5 Tage» – die Verteilung sucht den besten Platz.</p>
+      <div class="cal-head" id="calHead"></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="card hidden" id="ganttCard">
+      <div class="cal-nav">
+        <button class="nav-btn" data-nav="-1">◀</button>
+        <h2 id="ganttTitle"></h2>
+        <button class="nav-btn" data-nav="1">▶</button>
+      </div>
+      <p class="hint">Balken <b>ziehen</b> = verschieben, <b>klicken</b> = bearbeiten. Weiss = offener Wunsch, gestrichelt = Zeitfenster eines flexiblen Wunsches bzw. ursprünglicher Wunsch nach manuellem Verschieben (↔), hell = vorläufig zugeteilt, kräftig = bestätigt, grau schraffiert = abgelehnt. <b style="color:#dc2626">Rot umrandet</b> = verletzt eine Regel. Die Zahlen unten zeigen pro Tag die abwesenden Stellen (Summe Pensum, z.B. 1.5 = 150 %; zugeteilt + bestätigt).</p>
+      <div class="gantt-wrap"><table class="gantt" id="gantt"></table></div>
+    </section>
+
+    <section class="card hidden" id="teamCard">
+      <h2>Team: Guthaben, Pensum &amp; freie Tage</h2>
+      <p class="hint">Änderungen werden sofort gespeichert. Abgezogen werden pro Person nur ihre <b>Arbeitstage</b> (Mo–Sa ohne freie Tage, ohne Feiertage). Wer im Wechsel frei hat: «im Wechsel» ankreuzen und die freien Tage für gerade und ungerade Kalenderwochen setzen. Das Kürzel ist das Passwort der Person.</p>
+      <div class="gantt-wrap"><table class="bal" id="teamTable" style="min-width:860px"></table></div>
+      <div class="add-box" style="margin-top:14px">
+        <h3 style="margin-top:0">Person hinzufügen</h3>
+        <div class="btn-row" style="align-items:flex-end">
+          <div class="field" style="margin:0"><label>Name</label><input id="newName"></div>
+          <div class="field" style="margin:0"><label>Kürzel</label><input id="newKuerzel" style="width:80px;text-transform:uppercase"></div>
+          <div class="field" style="margin:0"><label>Gruppe</label><select id="newGruppe"></select></div>
+          <button class="btn small" id="addPersonBtn">+ Hinzufügen</button>
+        </div>
+      </div>
+    </section>
+
+    <aside>
+      <div class="card">
+        <h2>Wunsch eintragen</h2>
+        <div class="row2">
+          <div class="field"><label for="fromInput">Von</label><input type="date" id="fromInput"></div>
+          <div class="field"><label for="toInput">Bis</label><input type="date" id="toInput"></div>
+        </div>
+        <div class="field admin-only">
+          <label for="bookForSelect">Eintragen für (nur Admin)</label>
+          <select id="bookForSelect"></select>
+        </div>
+        <p class="hint" style="margin:0">Alternativ zum Klicken im Kalender.</p>
+      </div>
+
+      <div class="card">
+        <h2 id="myWishesTitle">Meine Wünsche</h2>
+        <ul class="wish-list" id="myWishes"></ul>
+      </div>
+
+      <div class="card admin-only">
+        <h2>Planung</h2>
+        <div class="field">
+          <label for="phaseSelect">Phase</label>
+          <select id="phaseSelect">
+            <option value="wuensche">1 · Wunschphase offen (Team kann eintragen)</option>
+            <option value="geschlossen">2 · Geschlossen (ich verteile)</option>
+            <option value="veroeffentlicht">3 · Veröffentlicht (Team sieht bestätigte Ferien)</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="distributeBtn">⚖️ Fair verteilen</button>
+          <button class="btn green" id="confirmAllBtn">✔ Zugeteilte bestätigen</button>
+          <button class="btn secondary" id="exportBtn">⬇ CSV-Export</button>
+        </div>
+        <p class="hint" style="margin-top:10px">«Fair verteilen» verteilt alle <b>nicht bestätigten</b> Wünsche neu: zuerst alle ⭐ Must, dann Prio 1, dann Prio 2. Reihenfolge der Personen per Los, jede Runde umgekehrt (Schlangenprinzip). Flexible Wünsche bekommen den Platz im Zeitfenster, wo am wenigsten Leute weg sind. Bestätigte Ferien bleiben fix.</p>
+        <div id="lastRun"></div>
+      </div>
+
+      <div class="card admin-only">
+        <h2>Guthaben &amp; Wünsche</h2>
+        <table class="bal" id="balTable"></table>
+      </div>
+
+      <div class="card admin-only">
+        <h2>Regeln</h2>
+        <div class="field">
+          <label for="maxMustInput">Max. ⭐ Must-Wünsche pro Person</label>
+          <input type="number" id="maxMustInput" min="0" max="10" style="width:90px">
+        </div>
+
+        <div class="field">
+          <label for="nsWeeksInput">Min. Wochen in Jan–März + Okt–Dez (pro Person, anteilig Pensum)</label>
+          <input type="number" id="nsWeeksInput" min="0" max="10" step="0.5" style="width:90px">
+        </div>
+        <h3>⛔ Sperrtage (keine Ferien möglich)</h3>
+        <ul class="rule-list" id="sperrList"></ul>
+        <div class="add-box" style="margin-bottom:10px">
+          <div class="field"><label>Bezeichnung</label><input id="spName" placeholder="z.B. Inventur"></div>
+          <div class="row2">
+            <div class="field"><label>Von</label><input type="date" id="spFrom"></div>
+            <div class="field"><label>Bis</label><input type="date" id="spTo"></div>
+          </div>
+          <button class="btn small" id="addSperrBtn">+ Sperrtag hinzufügen</button>
+        </div>
+        <h3>Samstage: 1 Woche = 1 Samstag</h3>
+        <label class="inline-check"><input type="checkbox" id="satRuleOn"> aktiv – pro Ferienwoche max. 1 Samstag frei</label>
+        <div class="row2">
+          <div class="field"><label>Von</label><input type="date" id="satRuleFrom"></div>
+          <div class="field"><label>Bis</label><input type="date" id="satRuleTo"></div>
+        </div>
+
+        <h3>Max. gleichzeitig abwesend</h3>
+        <ul class="rule-list" id="limitList"></ul>
+        <div class="add-box">
+          <div class="field"><label>Bezeichnung</label><input id="limLabel" placeholder="z.B. Saison"></div>
+          <div class="row2">
+            <div class="field"><label>Gruppe</label><select id="limGroup"></select></div>
+            <div class="field"><label>Einheit</label><select id="limUnit"><option value="pensum">Pensum in %</option><option value="personen">Personen</option></select></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Max.</label><input type="number" id="limMax" min="0" value="200"></div>
+            <label class="inline-check" style="margin-top:22px"><input type="checkbox" id="limSat"> nur Samstage</label>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Von</label><input type="date" id="limFrom"></div>
+            <div class="field"><label>Bis</label><input type="date" id="limTo"></div>
+          </div>
+          <button class="btn small" id="addLimitBtn">+ Regel hinzufügen</button>
+        </div>
+
+        <h3>Nicht gleichzeitig weg</h3>
+        <p class="hint">Teamleitung (TL) und Stellvertretung (Stv) aus der Personenliste werden automatisch geprüft.</p>
+        <ul class="rule-list" id="pairList"></ul>
+        <div class="add-box">
+          <div class="row2">
+            <div class="field"><label>Person A</label><select id="pairA"></select></div>
+            <div class="field"><label>Person B</label><select id="pairB"></select></div>
+          </div>
+          <button class="btn small" id="addPairBtn">+ Paar hinzufügen</button>
+        </div>
+      </div>
+
+      <div class="card admin-only">
+        <h2>Schulferien (nur Anzeige)</h2>
+        <ul class="rule-list" id="schoolList"></ul>
+        <div class="add-box">
+          <div class="field"><label>Bezeichnung</label><input id="schName" placeholder="z.B. Sommerferien"></div>
+          <div class="row2">
+            <div class="field"><label>Von</label><input type="date" id="schFrom"></div>
+            <div class="field"><label>Bis</label><input type="date" id="schTo"></div>
+          </div>
+          <button class="btn small" id="addSchoolBtn">+ Schulferien hinzufügen</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- Anmeldung -->
+<div class="modal-back" id="loginModal">
+  <div class="modal" id="loginBox">
+    <h3 id="loginTitle">Anmelden</h3>
+    <p style="margin:0 0 10px" id="loginText"></p>
+    <input type="password" class="pin" id="loginInput" autocomplete="off" maxlength="12">
+    <div class="err" id="loginErr"></div>
+    <div class="actions">
+      <button class="btn secondary" id="loginCancel">Abbrechen</button>
+      <button class="btn" id="loginOk">Anmelden</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wunsch bearbeiten / Details -->
+<div class="modal-back" id="editModal">
+  <div class="modal">
+    <h3 id="editTitle"></h3>
+    <div id="editInfo" class="hint"></div>
+    <div id="editFields">
+      <div class="row2">
+        <div class="field"><label>Von</label><input type="date" id="edFrom"></div>
+        <div class="field"><label>Bis</label><input type="date" id="edTo"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Priorität</label>
+          <select id="edPrio"><option value="must">⭐ Must</option><option value="p1">Prio 1</option><option value="p2">Prio 2</option></select>
+        </div>
+        <div class="field"><label>Status</label>
+          <select id="edStatus"><option value="offen">Wunsch (offen)</option><option value="zugeteilt">vorläufig zugeteilt</option><option value="bestaetigt">bestätigt</option><option value="abgelehnt">abgelehnt</option></select>
+        </div>
+      </div>
+      <div id="edFlexBox" class="hidden">
+        <p class="hint" style="margin:0 0 6px">Flexibler Wunsch: «Von/Bis» oben = Zeitfenster.</p>
+        <div class="row2">
+          <div class="field"><label>Anzahl Ferientage</label><input type="number" id="edLen" min="1" max="60"></div>
+          <div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Zugeteilt von</label><input type="date" id="edAFrom"></div>
+          <div class="field"><label>Zugeteilt bis</label><input type="date" id="edATo"></div>
+        </div>
+      </div>
+      <div class="field"><label>Bemerkung / Grund</label><input id="edReason"></div>
+    </div>
+    <div class="actions">
+      <button class="btn danger" id="edDelete">Löschen</button>
+      <span style="flex:1"></span>
+      <button class="btn secondary" id="edCancel">Schliessen</button>
+      <button class="btn" id="edSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script type="module">
+/* =====================================================================
+   1) FIREBASE-ZUGANGSDATEN
+   Den Block unten durch den Block aus der Firebase-Konsole ersetzen
+   (Projekteinstellungen → Allgemein → Meine Apps → Web-App → Config).
+   Solange hier HIER_EINFUEGEN steht, läuft die App im Demo-Modus.
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCcwAYFaLCczpvnfIWy5_4njFz2I6eNUmI",
+  authDomain: "ferienplanung-2027-test.firebaseapp.com",
+  projectId: "ferienplanung-2027-test",
+  storageBucket: "ferienplanung-2027-test.firebasestorage.app",
+  messagingSenderId: "702003439972",
+  appId: "1:702003439972:web:cc64029c60d1ff38ccb271"
+};
+
+/* =====================================================================
+   2) EINSTELLUNGEN
+   ===================================================================== */
+const JAHR = 2027;
+const EINGABE_BIS = "31.12.2026";             // wird im Hinweis fürs Team angezeigt
+const ADMIN_NAME = "Silvan";
+const ADMIN_PIN = "31174";                     // ⚠️ vor dem Einsatz ändern (mind. 6 Zeichen)
+const FIREBASE_VERSION = "10.12.2";
+const GRUPPEN = ["Verkauf", "Clinic"];
+
+/* Start-Team (nur beim allerersten Start; danach im Reiter «👥 Team» in der App pflegen).
+   frei = reguläre freie Tage (1=Mo … 6=Sa). Wer im Wechsel frei hat: freiB = freie Tage in ungeraden KW.
+   rolle: "TL" (Teamleitung) / "Stv" (Stellvertretung) → nie gleichzeitig weg.
+   ⚠️ Pensum und Ferientage sind vorläufig (aus den Arbeitstagen abgeleitet) – im Reiter «Team» prüfen. */
+const START_TEAM = [
+  { name: "Silvan", kuerzel: "SKB", tage: 25, pensum: 100, gruppe: "Verkauf", rolle: "TL",  frei: [5] },
+  { name: "Sven",   kuerzel: "DES", tage: 25, pensum: 100, gruppe: "Verkauf", rolle: "Stv", frei: [1] },
+  { name: "Malte",  kuerzel: "MKR", tage: 20, pensum: 80,  gruppe: "Verkauf", frei: [3, 4] },
+  { name: "Sara",   kuerzel: "SLT", tage: 10, pensum: 40,  gruppe: "Verkauf", frei: [3, 4, 5, 6] }
+];
+
+/* Schulferien Basel-Stadt 2027 – Vorschlag, NICHT aus offizieller Quelle geprüft.
+   Bitte mit bs.ch abgleichen; in der App unter «Schulferien» anpassbar. */
+const SCHULFERIEN_VORSCHLAG = [
+  { name: "Fasnachtsferien", start: "2027-02-06", end: "2027-02-21" },
+  { name: "Frühlingsferien", start: "2027-03-20", end: "2027-04-04" },
+  { name: "Auffahrtsbrücke", start: "2027-05-07", end: "2027-05-07" },
+  { name: "Sommerferien",    start: "2027-07-03", end: "2027-08-15" },
+  { name: "Herbstferien",    start: "2027-10-02", end: "2027-10-17" },
+  { name: "Weihnachtsferien",start: "2027-12-18", end: "2027-12-31" }
+];
+
+/* Veloplus-Ferienregelung (Startwerte, in der App anpassbar) */
+const REGELN_START = {
+  limits: [
+    { id: "saison-verkauf", label: "Saison Mitte März – Ende Sommerferien", gruppe: "Verkauf", unit: "pensum", max: 200, start: "2027-03-15", end: "2027-08-15", nurSamstag: false },
+    { id: "saison-clinic",  label: "Saison Mitte März – Ende Sommerferien", gruppe: "Clinic",  unit: "pensum", max: 200, start: "2027-03-15", end: "2027-08-15", nurSamstag: false },
+    { id: "sa-verkauf", label: "Samstage Saison: keine Überschneidung", gruppe: "Verkauf", unit: "personen", max: 1, start: "2027-04-01", end: "2027-09-30", nurSamstag: true },
+    { id: "sa-clinic",  label: "Samstage Saison: keine Überschneidung", gruppe: "Clinic",  unit: "personen", max: 1, start: "2027-04-01", end: "2027-09-30", nurSamstag: true }
+  ],
+  samstagRegel: { aktiv: true, start: "2027-04-01", end: "2027-09-30" },
+  nebensaisonWochen: 2,
+  sperrtage: [
+    { name: "Inventur",  start: "2027-01-04", end: "2027-01-05" },
+    { name: "Primavelo", start: "2027-04-09", end: "2027-04-11" }
+  ]
+};
+/* ===================== Ende Einstellungen ============================ */
+
+const PALETTE = ["#2563eb","#dc2626","#16a34a","#7c3aed","#ea580c","#0891b2","#db2777","#92400e","#334155","#a21caf",
+  "#4d7c0f","#0f766e","#b45309","#4338ca","#be123c","#0369a1","#65a30d","#c2410c","#6d28d9","#047857","#9f1239","#1e40af","#854d0e","#155e75"];
+let MITARBEITENDE = [], PERSON = {}, NAMES = [];
+function setPeople(list) {
+  MITARBEITENDE = (list || []).filter(m => m && m.name).map((m, i) => ({
+    gruppe: GRUPPEN[0], pensum: 100, tage: 25, kuerzel: "", rolle: "", ...m,
+    frei: Array.isArray(m.frei) ? m.frei.map(Number) : [], freiB: Array.isArray(m.freiB) ? m.freiB.map(Number) : null,
+    color: m.color || PALETTE[i % PALETTE.length]
+  }));
+  PERSON = Object.fromEntries(MITARBEITENDE.map(m => [m.name, m]));
+  NAMES = MITARBEITENDE.map(m => m.name);
+}
+setPeople(START_TEAM);
+const PRIO_LABEL = { must: "⭐ Must", p1: "Prio 1", p2: "Prio 2" };
+const PRIO_SHORT = { must: "⭐", p1: "1", p2: "2" };
+const PRIO_ORDER = ["must", "p1", "p2"];
+const STATUS_LABEL = { offen: "Wunsch", zugeteilt: "vorläufig zugeteilt", bestaetigt: "bestätigt", abgelehnt: "abgelehnt" };
+const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const WT_KURZ = ["So","Mo","Di","Mi","Do","Fr","Sa"];
+const NS_MONATE = [0, 1, 2, 9, 10, 11];  // Jan–März, Okt–Dez
+const DEFAULT_CONFIG = { people: START_TEAM, phase: "wuensche", maxMust: 1, pairs: [], schulferien: SCHULFERIEN_VORSCHLAG, vorrang: [], lastRun: null, ...REGELN_START };
+
+const $ = id => document.getElementById(id);
+
+/* ---------------------- Datum ---------------------- */
+const pad = n => String(n).padStart(2, "0");
+const toIso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromIso = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = fromIso(s); d.setDate(d.getDate() + n); return toIso(d); };
+const isValidIso = s => /^\d{4}-\d{2}-\d{2}$/.test(s || "") && toIso(fromIso(s)) === s;
+const fmtDate = s => { const d = fromIso(s); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`; };
+const fmtShort = s => { const d = fromIso(s); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`; };
+const fmtDateLong = s => `${WT_KURZ[fromIso(s).getDay()]}, ${fmtDate(s)}`;
+const fmtRange = (a, b) => a === b ? fmtDateLong(a) : `${fmtShort(a)} – ${fmtDate(b)}`;
+function datesBetween(a, b) { const out = []; let c = a <= b ? a : b; const e = a <= b ? b : a; while (c <= e) { out.push(c); c = addDays(c, 1); } return out; }
+const inYear = s => s.startsWith(JAHR + "-");
+const wd = s => fromIso(s).getDay();
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/* ---------------------- Feiertage Basel-Stadt ---------------------- */
+function easterSunday(Y) {
+  const a = Y % 19, b = Math.floor(Y / 100), c = Y % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return toIso(new Date(Y, month - 1, day));
+}
+const holCache = {};
+function holidays(y) {
+  if (holCache[y]) return holCache[y];
+  const e = easterSunday(y);
+  const list = [
+    [`${y}-01-01`, "Neujahr"], [addDays(e, -2), "Karfreitag"], [addDays(e, 1), "Ostermontag"],
+    [`${y}-05-01`, "Tag der Arbeit"], [addDays(e, 39), "Auffahrt"], [addDays(e, 50), "Pfingstmontag"],
+    [`${y}-08-01`, "Nationalfeiertag"], [`${y}-12-25`, "Weihnachten"], [`${y}-12-26`, "Stephanstag"]
+  ];
+  return (holCache[y] = Object.fromEntries(list));
+}
+const holidayName = s => holidays(Number(s.slice(0, 4)))[s] || null;
+const isOpenDay = s => wd(s) !== 0 && !holidayName(s);   // Laden offen (Mo–Sa)
+function isoWeek(s) {
+  const d = fromIso(s); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const w1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+}
+/* Arbeitstag einer Person: Laden offen und nicht ihr regulärer freier Tag (Wechsel: freiB in ungeraden KW) */
+function freeDaysOn(p, s) { return (p.freiB && isoWeek(s) % 2 === 1) ? p.freiB : p.frei; }
+function isWorkday(name, s) {
+  if (!isOpenDay(s)) return false;
+  const p = PERSON[name]; if (!p) return wd(s) <= 5;
+  return !freeDaysOn(p, s).includes(wd(s));
+}
+const workDays = (name, a, b) => datesBetween(a, b).filter(d => isWorkday(name, d)).length;
+function perWeek(name) {
+  const p = PERSON[name]; if (!p) return 5;
+  const a = 6 - p.frei.length, b = p.freiB ? 6 - p.freiB.length : a;
+  return (a + b) / 2;
+}
+const WT_NAMEN = { 1: "Mo", 2: "Di", 3: "Mi", 4: "Do", 5: "Fr", 6: "Sa" };
+const freiTxt = p => (p.frei.map(x => WT_NAMEN[x]).join("+") || "–") + (p.freiB ? ` / ${p.freiB.map(x => WT_NAMEN[x]).join("+") || "–"} (Wechsel)` : "");
+
+/* ---------------------- Zustand ---------------------- */
+const state = {
+  user: "", isAdmin: false, bookFor: ADMIN_NAME, tab: "kalender",
+  view: { year: JAHR, month: 0 },
+  sel: { start: null, end: null, phase: "none" }, hover: null, prio: "p1", mode: "fix", flexLen: 5,
+  wishes: [], cfg: { ...DEFAULT_CONFIG }, loaded: false, busy: false,
+  drag: null, editId: null, loginFor: null
+};
+let backend = null, DEMO = false;
+
+/* ---------------------- Hilfen ---------------------- */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function toast(msg, type = "ok", ms = 5000) {
+  const el = document.createElement("div"); el.className = "toast " + (type === "ok" ? "" : type); el.innerHTML = msg;
+  $("toasts").appendChild(el); setTimeout(() => el.remove(), ms);
+}
+function newId() { try { if (crypto?.randomUUID) return crypto.randomUUID(); } catch (e) {} return "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+const clean = o => JSON.parse(JSON.stringify(o));
+const storageGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const storageSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const targetName = () => state.isAdmin ? state.bookFor : state.user;
+const groupOf = n => PERSON[n]?.gruppe || "?";
+const colorOf = n => PERSON[n]?.color || "#6b7280";
+const pensumOf = n => Number(PERSON[n]?.pensum) || 100;
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffle(arr, rng) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function schoolName(d) { const s = (state.cfg.schulferien || []).find(x => d >= x.start && d <= x.end); return s ? s.name : null; }
+const overlap = (a, b) => a.start <= b.end && b.start <= a.end;
+function sperrName(d) { const s = (state.cfg.sperrtage || []).find(x => d >= x.start && d <= x.end); return s ? s.name : null; }
+const sperrIn = (name, r) => datesBetween(r.start, r.end).find(d => isWorkday(name, d) && sperrName(d));
+/* Wie lautete der ursprüngliche Wunsch, falls manuell verschoben / Fenster bei flexiblen Wünschen? */
+function origOf(w) {
+  if (isFlex(w)) return w.aStart ? { start: w.start, end: w.end, win: true } : null;
+  return w.orig && w.orig.start ? { start: w.orig.start, end: w.orig.end, win: false } : null;
+}
+/* Begründungen für Mitarbeitende ohne Namen anderer Personen */
+const staffReason = r => String(r || "").replace(/\s*\((?:[^()]*\([^()]*\))*[^()]*\)/g, "").replace(/Nicht gleichzeitig mit [^,]+/, "Regel «nicht gleichzeitig weg»");
+
+/* Wunsch-Typen: fix (genau start–end) oder flex (len Tage irgendwo in start–end, zugeteilt aStart–aEnd) */
+const isFlex = w => w.type === "flex";
+const isGranted = w => w.status === "zugeteilt" || w.status === "bestaetigt";
+function effRange(w) {
+  if (!isFlex(w)) return { start: w.start, end: w.end };
+  return (w.aStart && w.aEnd) ? { start: w.aStart, end: w.aEnd } : null;
+}
+const wishDays = w => isFlex(w) ? (Number(w.len) || 0) : workDays(w.name, w.start, w.end);
+const grantedDays = w => { const r = effRange(w); return r ? workDays(w.name, r.start, r.end) : 0; };
+/* Was wird angezeigt? Zugeteilte flexible Wünsche am zugeteilten Ort, sonst das Zeitfenster. */
+function displayRange(w) {
+  const st = shownStatus(w);
+  if (isFlex(w) && (st === "zugeteilt" || st === "bestaetigt") && w.aStart && w.aEnd) return { start: w.aStart, end: w.aEnd, win: false };
+  return { start: w.start, end: w.end, win: isFlex(w) };
+}
+const wishLabel = w => isFlex(w) ? `${w.len} Tage flexibel im ${fmtRange(w.start, w.end)}` : fmtRange(w.start, w.end);
+const overlapsSchool = r => datesBetween(r.start, r.end).some(d => schoolName(d));
+
+function allPairs() {
+  const tl = MITARBEITENDE.filter(m => m.rolle === "TL").map(m => m.name);
+  const stv = MITARBEITENDE.filter(m => m.rolle === "Stv").map(m => m.name);
+  const auto = []; for (const a of tl) for (const b of stv) auto.push({ a, b, auto: true });
+  return [...auto, ...(state.cfg.pairs || [])];
+}
+
+function friendlyError(err) {
+  const code = String(err?.code || "");
+  if (code.includes("permission-denied")) return "Die Datenbank hat den Zugriff verweigert. Bitte in der Firebase-Konsole unter «Firestore Database → Regeln» prüfen, ob die Regeln aus der Anleitung veröffentlicht sind.";
+  if (code.includes("unavailable") || code.includes("failed-precondition")) return "Keine Verbindung zur Datenbank. Bitte Internetverbindung prüfen.";
+  if (code.includes("not-found")) return "Die Firestore-Datenbank wurde nicht gefunden. Bitte prüfen, ob «Firestore Database» erstellt wurde und die Zugangsdaten stimmen.";
+  return err?.message || String(err);
+}
+function showError(msg) { $("errorBanner").classList.toggle("on", !!msg); $("errorText").textContent = msg ? "⚠️ " + msg : ""; }
+
+/* =====================================================================
+   SPEICHER: Firestore oder lokaler Demo-Speicher (gleiche Schnittstelle)
+   Firestore: Sammlung "wishes" (ein Dokument pro Wunsch) + Dokument "config/main"
+   ===================================================================== */
+function createLocalBackend() {
+  const KEY = "ferienplaner_v4_demo";
+  let mem = { wishes: {}, config: null }, canStore = true, cbs = [];
+  const load = () => { if (!canStore) return mem; try { return JSON.parse(localStorage.getItem(KEY) || "null") || { wishes: {}, config: null }; } catch (e) { canStore = false; return mem; } };
+  const save = d => { mem = d; if (!canStore) return; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { canStore = false; } };
+  let store = load();
+  const emit = () => cbs.forEach(([w, c]) => { w(Object.values(store.wishes)); c(store.config); });
+  window.addEventListener("storage", e => { if (e.key === KEY) { store = load(); emit(); } });
+  const mutate = fn => { store = load(); const next = clean(store); fn(next); store = next; save(store); emit(); };
+  return {
+    subscribe(onWishes, onConfig) { cbs.push([onWishes, onConfig]); setTimeout(emit, 0); },
+    async setWish(w) { mutate(s => { s.wishes[w.id] = clean(w); }); },
+    async deleteWish(id) { mutate(s => { delete s.wishes[id]; }); },
+    async setWishes(list) { mutate(s => { for (const w of list) s.wishes[w.id] = clean(w); }); },
+    async deleteWishes(ids) { mutate(s => { for (const id of ids) delete s.wishes[id]; }); },
+    async setConfig(cfg) { mutate(s => { s.config = clean(cfg); }); },
+    resetAll() { store = { wishes: {}, config: null }; save(store); emit(); },
+    isPersistent: () => canStore
+  };
+}
+
+async function createFirestoreBackend() {
+  const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}`;
+  const appMod = await import(`${base}/firebase-app.js`);
+  const fs = await import(`${base}/firebase-firestore.js`);
+  const db = fs.getFirestore(appMod.initializeApp(firebaseConfig));
+  const W = "wishes", cfgRef = fs.doc(db, "config", "main");
+  async function batched(items, fn) {
+    for (let i = 0; i < items.length; i += 400) {
+      const b = fs.writeBatch(db); items.slice(i, i + 400).forEach(x => fn(b, x)); await b.commit();
+    }
+  }
+  return {
+    subscribe(onWishes, onConfig, onError, onMeta) {
+      fs.onSnapshot(fs.collection(db, W), { includeMetadataChanges: true }, snap => {
+        const list = []; snap.forEach(d => list.push({ ...d.data(), id: d.id }));
+        onMeta?.(snap.metadata.fromCache); onWishes(list);
+      }, onError);
+      fs.onSnapshot(cfgRef, snap => onConfig(snap.exists() ? snap.data() : null), onError);
+    },
+    setWish: w => fs.setDoc(fs.doc(db, W, w.id), clean(w)),
+    deleteWish: id => fs.deleteDoc(fs.doc(db, W, id)),
+    setWishes: list => batched(list, (b, w) => b.set(fs.doc(db, W, w.id), clean(w))),
+    deleteWishes: ids => batched(ids, (b, id) => b.delete(fs.doc(db, W, id))),
+    setConfig: cfg => fs.setDoc(cfgRef, clean(cfg))
+  };
+}
+
+async function saveConfig(patch) {
+  const next = { ...state.cfg, ...patch };
+  applyConfig(next); renderAll();
+  try { await backend.setConfig(next); } catch (err) { toast("❌ Speichern fehlgeschlagen: " + esc(friendlyError(err)), "err", 10000); }
+}
+
+/* ---------------------- Sichtbarkeit & Status ---------------------- */
+function visibleWishes() {
+  if (state.isAdmin) return state.wishes;
+  if (!state.user) return [];
+  return state.wishes.filter(w => w.name === state.user || (state.cfg.phase === "veroeffentlicht" && w.status === "bestaetigt"));
+}
+/* Status: alle sehen den echten Status ihrer eigenen Wünsche */
+function shownStatus(w) { return w.status; }
+
+/* ---------------------- Regelprüfung ---------------------- */
+function buildAbsentMap(list) {
+  const m = new Map();
+  for (const w of list) {
+    const r = effRange(w); if (!r) continue;
+    for (const d of datesBetween(r.start, r.end)) {
+      if (!isWorkday(w.name, d)) continue;
+      if (!m.has(d)) m.set(d, []);
+      m.get(d).push({ id: w.id, name: w.name, group: groupOf(w.name), pensum: pensumOf(w.name) });
+    }
+  }
+  return m;
+}
+const limitApplies = (lim, d, g) => d >= lim.start && d <= lim.end && (lim.gruppe === "Alle" || lim.gruppe === g) && (!lim.nurSamstag || wd(d) === 6);
+const limitTxt = l => `${l.unit === "pensum" ? `max. ${l.max} % Pensum` : `max. ${plural(Number(l.max), "Person", "Personen")}`}${l.nurSamstag ? " (nur Samstage)" : ""}`;
+
+/* Samstagsregel: pro Ferienwoche max. 1 Samstag (nur für Personen, die samstags arbeiten).
+   Ferienwochen = Arbeitstage Mo–Fr im Wunsch ÷ Arbeitstage Mo–Fr pro Woche (aufgerundet). */
+function saturdayRule(name, r) {
+  const sr = state.cfg.samstagRegel;
+  if (!sr?.aktiv) return null;
+  const days = datesBetween(r.start, r.end).filter(d => isWorkday(name, d));
+  const sats = days.filter(d => wd(d) === 6 && d >= sr.start && d <= sr.end);
+  if (!sats.length) return null;
+  const work = days.filter(d => wd(d) !== 6).length;
+  const p = PERSON[name];
+  const wk = p ? ((5 - p.frei.filter(x => x <= 5).length) + (5 - (p.freiB || p.frei).filter(x => x <= 5).length)) / 2 : 5;
+  const weeks = Math.max(1, Math.ceil(work / Math.max(1, wk) - 1e-9));
+  if (sats.length > weeks) return `Zu viele Samstage: ${sats.length} Samstage bei ${plural(work, "Arbeitstag", "Arbeitstagen")} Mo–Fr (Regel: 1 Woche = 1 Samstag)`;
+  return null;
+}
+
+/* Gibt den ersten Regelverstoss für Wunsch w im Zeitraum r als Text zurück – oder null. */
+function findViolation(w, r, absentMap) {
+  const g = groupOf(w.name), pen = pensumOf(w.name);
+  const pairs = allPairs(), limits = state.cfg.limits || [];
+  const sat = saturdayRule(w.name, r); if (sat) return sat;
+  const sp = sperrIn(w.name, r); if (sp) return `Sperrtag «${sperrName(sp)}» am ${fmtDate(sp)}`;
+  for (const d of datesBetween(r.start, r.end)) {
+    if (!isWorkday(w.name, d)) continue;
+    const others = (absentMap.get(d) || []).filter(x => x.id !== w.id && x.name !== w.name);
+    for (const lim of limits) {
+      if (!limitApplies(lim, d, g)) continue;
+      const same = others.filter(x => lim.gruppe === "Alle" || x.group === lim.gruppe);
+      if (lim.unit === "pensum") {
+        const sum = same.reduce((s, x) => s + x.pensum, 0);
+        if (sum + pen > Number(lim.max)) return `Regel «${lim.label}»: am ${fmtDateLong(d)} schon ${sum} % weg (${same.map(x => x.name).join(", ")}) + ${pen} % > ${lim.max} %`;
+      } else if (same.length + 1 > Number(lim.max)) {
+        return `Regel «${lim.label}»: am ${fmtDateLong(d)} schon ${same.length} weg (${same.map(x => x.name).join(", ")}), ${limitTxt(lim)}`;
+      }
+    }
+    for (const p of pairs) {
+      const partner = p.a === w.name ? p.b : p.b === w.name ? p.a : null;
+      if (partner && others.some(x => x.name === partner)) return `Nicht gleichzeitig mit ${partner}${p.auto ? " (Teamleitung/Stellvertretung)" : ""}, z.B. ${fmtDate(d)}`;
+    }
+  }
+  return null;
+}
+function liveConflicts() {
+  const granted = state.wishes.filter(isGranted);
+  const map = buildAbsentMap(granted);
+  const res = new Map();
+  for (const w of state.wishes) {
+    if (w.status === "abgelehnt") continue;
+    const r = effRange(w); if (!r) continue;
+    const v = findViolation(w, r, map);
+    if (v) res.set(w.id, v);
+  }
+  return { res, map };
+}
+/* Nebensaison: Ferientage in Jan–März + Okt–Dez */
+function nsRequired(name) { return Math.round(Number(state.cfg.nebensaisonWochen ?? 2) * perWeek(name)); }
+function nsDays(name, onlyGranted) {
+  let sum = 0;
+  for (const w of state.wishes.filter(x => x.name === name)) {
+    if (onlyGranted ? !isGranted(w) : w.status === "abgelehnt") continue;
+    let r = effRange(w);
+    if (!r && isFlex(w)) { // offenes Zeitfenster: zählt nur, wenn es ganz in der Nebensaison liegt
+      const all = datesBetween(w.start, w.end).every(d => NS_MONATE.includes(fromIso(d).getMonth()));
+      if (all) sum += Number(w.len) || 0; continue;
+    }
+    if (!r) continue;
+    sum += datesBetween(r.start, r.end).filter(d => isWorkday(name, d) && NS_MONATE.includes(fromIso(d).getMonth())).length;
+  }
+  return sum;
+}
+
+/* =====================================================================
+   FAIRE VERTEILUNG
+   1. Bestätigte Ferien sind fix.
+   2. Reihenfolge der Personen per Los (Seed wird gespeichert → nachvollziehbar).
+   3. Prioritäten nacheinander: ⭐ Must, Prio 1, Prio 2.
+      Innerhalb einer Priorität Runde um Runde je ein Wunsch pro Person, Richtung jede Runde umgekehrt.
+   4. Fixe Wünsche ganz oder gar nicht; flexible Wünsche bekommen den Platz im Fenster,
+      an dem am wenigsten Pensum der eigenen Gruppe abwesend ist (Montag-Start und Samstag bevorzugt).
+   ===================================================================== */
+function flexCandidates(w) {
+  const N = Number(w.len) || 0, out = [];
+  if (N < 1) return out;
+  for (const s of datesBetween(w.start, w.end)) {
+    if (!isWorkday(w.name, s)) continue;
+    let c = 0, cur = s, e = null;
+    while (cur <= w.end) { if (isWorkday(w.name, cur)) c++; if (c === N) { e = cur; break; } cur = addDays(cur, 1); }
+    if (!e) break;
+    out.push({ start: s, end: e });
+  }
+  return out;
+}
+function distribute(seed) {
+  const rng = mulberry32(seed);
+  const fixed = state.wishes.filter(w => w.status === "bestaetigt");
+  // bei Neuverteilung den ursprünglich gewünschten Zeitraum wiederherstellen
+  const todo = state.wishes.filter(w => w.status !== "bestaetigt" && inYear(w.start)).map(w => (!isFlex(w) && w.orig && w.orig.start) ? { ...w, start: w.orig.start, end: w.orig.end } : w);
+  const absent = buildAbsentMap(fixed);
+  const used = {}, own = {};
+  for (const w of fixed) { used[w.name] = (used[w.name] || 0) + grantedDays(w); (own[w.name] ||= []).push(effRange(w)); }
+  const order = shuffle([...new Set(todo.map(w => w.name))].sort(), rng);
+  const result = new Map();
+  const grant = (w, r) => {
+    for (const d of datesBetween(r.start, r.end)) {
+      if (!isWorkday(w.name, d)) continue;
+      if (!absent.has(d)) absent.set(d, []);
+      absent.get(d).push({ id: w.id, name: w.name, group: groupOf(w.name), pensum: pensumOf(w.name) });
+    }
+    used[w.name] = (used[w.name] || 0) + workDays(w.name, r.start, r.end);
+    (own[w.name] ||= []).push(r);
+  };
+  const reject = (w, reason) => result.set(w.id, isFlex(w) ? { status: "abgelehnt", reason, aStart: "", aEnd: "" } : { status: "abgelehnt", reason, start: w.start, end: w.end, orig: null });
+  const tryGrant = w => {
+    const p = PERSON[w.name];
+    if (!p) return reject(w, "Person nicht in der Liste");
+    const days = wishDays(w), left = p.tage - (used[w.name] || 0);
+    if (days > left) return reject(w, `Guthaben reicht nicht (${plural(days, "Tag", "Tage")} gewünscht, noch ${left} übrig)`);
+    const ownClash = r => (own[w.name] || []).some(o => overlap(o, r));
+    if (!isFlex(w)) {
+      const r = { start: w.start, end: w.end };
+      if (ownClash(r)) return reject(w, "Überschneidet sich mit eigenen, bereits zugeteilten Ferien");
+      const v = findViolation(w, r, absent);
+      if (!v) { grant(w, r); result.set(w.id, { status: "zugeteilt", reason: "", start: w.start, end: w.end, orig: null }); return; }
+      // Endet der Wunsch mit einem Samstag, der schon belegt ist? → ohne diesen Samstag versuchen
+      if (wd(w.end) === 6 && w.end > w.start) {
+        const r2 = { start: w.start, end: addDays(w.end, -1) };
+        if (workDays(w.name, r2.start, r2.end) > 0 && !findViolation(w, r2, absent)) {
+          grant(w, r2);
+          result.set(w.id, { status: "zugeteilt", start: w.start, end: r2.end, orig: { start: w.start, end: w.end }, reason: `ohne Samstag ${fmtShort(w.end)} zugeteilt (${v})` });
+          return;
+        }
+      }
+      return reject(w, v);
+    }
+    let best = null, firstReason = null;
+    for (const c of flexCandidates(w)) {
+      if (ownClash(c)) continue;
+      const v = findViolation(w, c, absent);
+      if (v) { firstReason ||= v; continue; }
+      let load = 0;
+      for (const d of datesBetween(c.start, c.end)) if (isWorkday(w.name, d)) load += (absent.get(d) || []).filter(x => x.group === p.gruppe).reduce((s, x) => s + x.pensum, 0);
+      const before = datesBetween(addDays(c.start, -(wd(c.start) + 6) % 7), c.start).slice(0, -1).some(d => isWorkday(w.name, d));
+      const after = datesBetween(c.end, addDays(c.end, 6 - wd(c.end))).slice(1).some(d => isWorkday(w.name, d));
+      const score = load + (before ? 300 : 0) + (after ? 150 : 0);   // ganze Wochen bevorzugt
+      if (!best || score < best.score) best = { ...c, score };
+    }
+    if (!best) return reject(w, "Kein passender Platz im Zeitfenster" + (firstReason ? ` (z.B. ${firstReason})` : ""));
+    grant(w, best); result.set(w.id, { status: "zugeteilt", reason: "", aStart: best.start, aEnd: best.end });
+  };
+  let pass = 0;
+  const rank = n => order.indexOf(n);
+  for (const prio of PRIO_ORDER) {
+    const ofPrio = todo.filter(w => w.prio === prio);
+    const rest = ofPrio;
+    // fixe vor flexiblen Wünschen derselben Person, dann nach Datum
+    const queues = new Map(order.map(n => [n, rest.filter(w => w.name === n).sort((a, b) => (isFlex(a) - isFlex(b)) || a.start.localeCompare(b.start))]));
+    while ([...queues.values()].some(q => q.length)) {
+      const ord = pass % 2 === 0 ? order : [...order].reverse();
+      for (const n of ord) { const q = queues.get(n); if (q.length) tryGrant(q.shift()); }
+      pass++;
+    }
+  }
+  return { result, order };
+}
+
+async function runDistribution() {
+  const open = state.wishes.filter(w => w.status !== "bestaetigt");
+  if (!open.length) { toast("Es gibt keine offenen Wünsche zum Verteilen.", "info"); return; }
+  const touched = open.filter(w => w.status !== "offen").length;
+  if (!confirm(`${open.length} nicht bestätigte Wünsche werden neu verteilt.` + (touched ? `\n\nAchtung: ${touched} davon sind schon zugeteilt/abgelehnt – manuelle Änderungen daran werden überschrieben.` : "") + "\n\nFortfahren?")) return;
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  const { result, order } = distribute(seed);
+  const now = Date.now();
+  const updates = open.filter(w => result.has(w.id)).map(w => ({ ...w, ...result.get(w.id), updatedAt: now, by: "Verteilung" }));
+  try {
+    await backend.setWishes(updates);
+    const ok = updates.filter(w => w.status === "zugeteilt").length;
+    await saveConfig({ lastRun: { at: now, seed, order, ok, rejected: updates.length - ok } });
+    toast(`⚖️ Verteilt: <b>${ok}</b> zugeteilt, <b>${updates.length - ok}</b> abgelehnt. Jetzt in der Übersicht prüfen und verschieben.`, "ok", 8000);
+    setTab("uebersicht");
+  } catch (err) { toast("❌ Verteilung fehlgeschlagen: " + esc(friendlyError(err)), "err", 10000); }
+}
+
+async function confirmAll() {
+  const list = state.wishes.filter(w => w.status === "zugeteilt");
+  if (!list.length) { toast("Keine vorläufig zugeteilten Wünsche vorhanden.", "info"); return; }
+  const conf = liveConflicts().res;
+  const bad = list.filter(w => conf.has(w.id)).length;
+  if (!confirm(`${list.length} zugeteilte Wünsche bestätigen?` + (bad ? `\n\n⚠️ ${bad} davon verletzen aktuell eine Regel.` : ""))) return;
+  const now = Date.now();
+  try { await backend.setWishes(list.map(w => ({ ...w, status: "bestaetigt", updatedAt: now, by: state.user }))); toast(`✔ ${list.length} Wünsche bestätigt.`); }
+  catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
+
+function exportCsv() {
+  const rows = [["Name", "Kürzel", "Gruppe", "Pensum", "Von", "Bis", "Ferientage", "Priorität", "Art", "Zeitfenster", "Status", "Bemerkung"]];
+  const list = [...state.wishes].sort((a, b) => NAMES.indexOf(a.name) - NAMES.indexOf(b.name) || a.start.localeCompare(b.start));
+  for (const w of list) {
+    const r = effRange(w);
+    rows.push([w.name, PERSON[w.name]?.kuerzel || "", groupOf(w.name), pensumOf(w.name) + " %",
+      r ? fmtDate(r.start) : "", r ? fmtDate(r.end) : "", r ? workDays(w.name, r.start, r.end) : wishDays(w),
+      PRIO_LABEL[w.prio].replace("⭐ ", ""), isFlex(w) ? `flexibel (${w.len} Tage)` : "fix",
+      isFlex(w) ? `${fmtDate(w.start)} – ${fmtDate(w.end)}` : "", STATUS_LABEL[w.status], w.reason || ""]);
+  }
+  const csv = "﻿" + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = `ferienplan_${JAHR}_${toIso(new Date())}.csv`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* ---------------------- Anmeldung ---------------------- */
+function fillPeopleSelects() {
+  const keep = id => $(id).value;
+  const vals = { us: state.user, bf: keep("bookForSelect") || state.bookFor, a: keep("pairA"), b: keep("pairB") };
+  const us = $("userSelect"); us.length = 1;
+  for (const n of NAMES) us.add(new Option(n + (n === ADMIN_NAME ? " (Admin)" : ""), n));
+  for (const id of ["bookForSelect", "pairA", "pairB"]) { $(id).length = 0; for (const n of NAMES) $(id).add(new Option(n, n)); }
+  us.value = PERSON[vals.us] ? vals.us : "";
+  $("bookForSelect").value = PERSON[vals.bf] ? vals.bf : ADMIN_NAME;
+  if (PERSON[vals.a]) $("pairA").value = vals.a; if (PERSON[vals.b]) $("pairB").value = vals.b;
+  if (!PERSON[state.bookFor]) state.bookFor = ADMIN_NAME;
+}
+function initSelects() {
+  fillPeopleSelects();
+  for (const g of ["Alle", ...GRUPPEN]) $("limGroup").add(new Option(g, g));
+  $("limGroup").value = GRUPPEN[0];
+  const us = $("userSelect");
+  us.addEventListener("change", () => { if (us.value) openLogin(us.value); else logout(); });
+  $("bookForSelect").addEventListener("change", () => { state.bookFor = $("bookForSelect").value; renderAll(); });
+}
+let restored = false;
+function restoreLogin() {
+  if (restored) return; restored = true;
+  const saved = storageGet("ferienplaner_user"), savedAdmin = storageGet("ferienplaner_admin") === "1";
+  if (saved && PERSON[saved]) {
+    if (saved === ADMIN_NAME && !savedAdmin) openLogin(saved);
+    else setUser(saved, saved === ADMIN_NAME);
+  }
+}
+/* Neue Konfiguration übernehmen (aus Datenbank oder lokal geändert) */
+function applyConfig(cfg) {
+  state.cfg = { ...DEFAULT_CONFIG, ...(cfg || {}) };
+  setPeople(state.cfg.people && state.cfg.people.length ? state.cfg.people : START_TEAM);
+  fillPeopleSelects();
+  if (state.user && !PERSON[state.user]) logout();
+}
+function openLogin(name) {
+  state.loginFor = name;
+  const admin = name === ADMIN_NAME;
+  $("loginTitle").textContent = admin ? "Admin-Anmeldung" : `Anmelden als ${name}`;
+  $("loginText").innerHTML = admin ? `Bitte Admin-PIN für <b>${esc(name)}</b> eingeben:` : `Bitte Ihr <b>Kürzel</b> als Passwort eingeben:`;
+  $("loginInput").value = ""; $("loginErr").textContent = "";
+  $("loginModal").classList.add("on"); setTimeout(() => $("loginInput").focus(), 50);
+}
+function submitLogin() {
+  const name = state.loginFor, val = $("loginInput").value.trim();
+  const ok = name === ADMIN_NAME ? val === ADMIN_PIN : val.toUpperCase() === String(PERSON[name].kuerzel).toUpperCase();
+  if (ok) { $("loginModal").classList.remove("on"); setUser(name, name === ADMIN_NAME); if (name === ADMIN_NAME) toast("Admin-Ansicht freigeschaltet.", "info"); }
+  else {
+    $("loginErr").textContent = name === ADMIN_NAME ? "Falscher PIN." : "Falsches Kürzel.";
+    const box = $("loginBox"); box.classList.remove("shake"); void box.offsetWidth; box.classList.add("shake"); $("loginInput").select();
+  }
+}
+function cancelLogin() { $("loginModal").classList.remove("on"); $("userSelect").value = state.user || ""; }
+function setUser(name, admin) {
+  state.user = name; state.isAdmin = admin;
+  $("userSelect").value = name;
+  document.body.classList.toggle("is-admin", admin);
+  $("adminBadge").classList.toggle("on", admin);
+  $("logoutBtn").classList.toggle("on", !!name);
+  if (admin) state.bookFor = $("bookForSelect").value || ADMIN_NAME;
+  if (!admin && state.tab !== "kalender") setTab("kalender");
+  storageSet("ferienplaner_user", name); storageSet("ferienplaner_admin", admin ? "1" : "0");
+  clearSelection(); renderAll();
+}
+function logout() { setUser("", false); storageSet("ferienplaner_user", ""); }
+
+/* ---------------------- Auswahl ---------------------- */
+function requireUser() {
+  if (state.user) return true;
+  const s = $("userSelect"); s.classList.remove("attention"); void s.offsetWidth; s.classList.add("attention"); s.focus();
+  toast("Bitte zuerst oben bei «Ich bin» Ihren Namen wählen.", "err"); return false;
+}
+const canEdit = () => state.isAdmin || state.cfg.phase === "wuensche";
+function onDayClick(date) {
+  if (!requireUser()) return;
+  if (!inYear(date)) { toast(`Wünsche können nur für ${JAHR} eingetragen werden.`, "err"); return; }
+  if (!canEdit()) { toast("Die Wunschphase ist geschlossen.", "err"); return; }
+  const s = state.sel;
+  if (s.phase !== "end") { s.start = date; s.end = date; s.phase = "end"; }
+  else { if (date < s.start) { s.end = s.start; s.start = date; } else s.end = date; s.phase = "done"; }
+  state.hover = null; syncInputs(); renderCalendar(); renderActionBar();
+}
+function clearSelection() { state.sel = { start: null, end: null, phase: "none" }; state.hover = null; syncInputs(); renderCalendar(); renderActionBar(); }
+function syncInputs() { $("fromInput").value = state.sel.start || ""; $("toInput").value = state.sel.end || ""; }
+function onInputsChanged() {
+  const a = $("fromInput").value, b = $("toInput").value;
+  if (!isValidIso(a) && !isValidIso(b)) { clearSelection(); return; }
+  if (!requireUser() || !canEdit()) { syncInputs(); return; }
+  const s = isValidIso(a) ? a : b, e = isValidIso(b) ? b : a;
+  state.sel = { start: s <= e ? s : e, end: s <= e ? e : s, phase: "done" };
+  syncInputs();
+  const d = fromIso(state.sel.start); state.view = { year: d.getFullYear(), month: d.getMonth() };
+  renderAll();
+}
+function currentRange() {
+  const { start, end, phase } = state.sel;
+  if (!start) return null;
+  if (phase === "end" && state.hover) return state.hover < start ? [state.hover, start] : [start, state.hover];
+  return [start, end];
+}
+/* Prüft einen neuen/geänderten Wunsch. flexLen > 0 = flexibler Wunsch (start–end = Zeitfenster). */
+function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
+  const p = PERSON[who];
+  const flex = flexLen > 0;
+  const avail = workDays(who, start, end);
+  const days = flex ? flexLen : avail;
+  const mine = state.wishes.filter(w => w.name === who && w.id !== ignoreId);
+  const errs = [], infos = [];
+  if (!inYear(start) || !inYear(end)) errs.push(`Nur Daten im Jahr ${JAHR} möglich.`);
+  if (flex) {
+    if (avail < flexLen) errs.push(`Zeitfenster zu kurz: nur ${avail} Ferientage drin, ${flexLen} gewünscht.`);
+    else if (avail === flexLen) infos.push("Zeitfenster hat genau so viele Tage – dann besser «Genau diese Tage» wählen.");
+  } else {
+    if (days === 0) errs.push("Keine Arbeitstage in dieser Auswahl (nur freie Tage, Sonntage oder Feiertage).");
+    const ov = mine.find(w => !isFlex(w) && overlap(w, { start, end })) || mine.find(w => isFlex(w) && effRange(w) && overlap(effRange(w), { start, end }));
+    if (ov) errs.push(`Überschneidet sich mit dem Wunsch ${wishLabel(ov)}.`);
+    const sp = sperrIn(who, { start, end });
+    if (sp) errs.push(`Enthält den Sperrtag «${sperrName(sp)}» (${fmtDate(sp)}) – an diesem Tag keine Ferien möglich.`);
+    const sat = saturdayRule(who, { start, end });
+    if (sat) errs.push(sat);
+  }
+  if (days > p.tage) errs.push(`Mehr Tage als Guthaben (${days} > ${p.tage}).`);
+  const mustCount = mine.filter(w => w.prio === "must").length;
+  const mustBlocked = mustCount >= Number(state.cfg.maxMust ?? 1);
+  if (prio === "must" && mustBlocked) errs.push(`Max. ${state.cfg.maxMust} ⭐ Must-Wunsch pro Person – schon vergeben.`);
+  const wished = mine.reduce((s, w) => s + wishDays(w), 0);
+  infos.push(`Total gewünscht inkl. diesem: ${wished + days} von ${p.tage} Tagen`);
+  const hits = (state.cfg.limits || []).filter(l => l.start <= end && start <= l.end && (l.gruppe === "Alle" || l.gruppe === p.gruppe));
+  if (hits.length) infos.push("Eingeschränkter Zeitraum: " + [...new Set(hits.map(l => `${l.label} (${limitTxt(l)})`))].join(", "));
+  return { days, errs, infos, mustBlocked };
+}
+function renderActionBar() {
+  const bar = $("actionBar");
+  if (!state.sel.start || !state.user) { bar.classList.remove("on"); return; }
+  bar.classList.add("on");
+  const who = targetName(), { start: a, end: b } = state.sel;
+  const flexLen = state.mode === "flex" ? state.flexLen : 0;
+  let r = analyse(a, b, who, state.prio, null, flexLen);
+  if (state.prio === "must" && r.mustBlocked) { state.prio = "p1"; r = analyse(a, b, who, state.prio, null, flexLen); }
+  const forTxt = state.isAdmin && who !== state.user ? ` für <b>${esc(who)}</b>` : "";
+  const what = state.mode === "flex" ? `${plural(r.days, "Ferientag", "Ferientage")} irgendwo darin` : plural(r.days, "Ferientag", "Ferientage");
+  $("selTitle").innerHTML = `${esc(fmtRange(a, b))} → <span style="color:#fde68a">${what}</span>${forTxt}`;
+  const sub = [...r.infos]; if (state.sel.phase === "end") sub.unshift("Jetzt auf den letzten Tag klicken (oder direkt speichern).");
+  $("selSub").textContent = sub.join(" · ");
+  $("selWarn").textContent = r.errs.join(" · ");
+  for (const btn of $("prioPick").querySelectorAll("button")) {
+    btn.classList.toggle("on", btn.dataset.prio === state.prio);
+    btn.disabled = btn.dataset.prio === "must" && r.mustBlocked;
+  }
+  for (const btn of $("modePick").querySelectorAll("button")) btn.classList.toggle("on", btn.dataset.mode === state.mode);
+  $("flexLen").disabled = state.mode !== "flex";
+  $("saveWishBtn").disabled = state.busy || r.errs.length > 0;
+  $("saveWishBtn").textContent = state.busy ? "Speichert …" : `Wunsch speichern (${PRIO_LABEL[state.prio]})`;
+}
+async function saveWish() {
+  if (state.busy) return;
+  const who = targetName(), { start, end } = state.sel;
+  const flex = state.mode === "flex";
+  const r = analyse(start, end, who, state.prio, null, flex ? state.flexLen : 0);
+  if (r.errs.length) return;
+  state.busy = true; renderActionBar();
+  const now = Date.now();
+  const w = { id: newId(), name: who, type: flex ? "flex" : "fix", start, end, prio: state.prio, status: "offen", reason: "", createdAt: now, updatedAt: now, by: state.user };
+  if (flex) { w.len = state.flexLen; w.aStart = ""; w.aEnd = ""; }
+  try {
+    await backend.setWish(w);
+    toast(`✅ Wunsch gespeichert: <b>${esc(wishLabel(w))}</b> (${PRIO_LABEL[w.prio]}).`);
+    clearSelection();
+  } catch (err) { toast("❌ Speichern fehlgeschlagen: " + esc(friendlyError(err)), "err", 10000); }
+  finally { state.busy = false; renderActionBar(); }
+}
+
+/* ---------------------- Bearbeiten ---------------------- */
+function openEdit(id) {
+  const w = state.wishes.find(x => x.id === id); if (!w) return;
+  state.editId = id;
+  const own = w.name === state.user;
+  const conf = liveConflicts().res.get(id);
+  $("editTitle").innerHTML = `<span class="dot-c" style="background:${colorOf(w.name)}"></span>${esc(w.name)} · ${esc(PRIO_LABEL[w.prio])}${isFlex(w) ? " · 🔀 flexibel" : ""}`;
+  const st = shownStatus(w), dr = displayRange(w);
+  $("editInfo").innerHTML = `${esc(wishLabel(w))} · <span class="status ${st}">${STATUS_LABEL[st]}</span>` +
+    (isFlex(w) && !dr.win ? `<br>Zugeteilt: <b>${esc(fmtRange(dr.start, dr.end))}</b> (${workDays(w.name, dr.start, dr.end)} Ferientage)` : "") +
+    (origOf(w) && !origOf(w).win ? `<br>Ursprünglicher Wunsch: <b>${esc(fmtRange(origOf(w).start, origOf(w).end))}</b>` : "") +
+    (state.isAdmin && w.reason ? `<br>Bemerkung: ${esc(w.reason)}` : "") +
+    (!state.isAdmin && w.reason ? `<br>Bemerkung: ${esc(staffReason(w.reason))}` : "") +
+    (state.isAdmin && conf ? `<br><b style="color:#dc2626">⚠️ ${esc(conf)}</b>` : "");
+  $("editFields").classList.toggle("hidden", !state.isAdmin);
+  $("edSave").classList.toggle("hidden", !state.isAdmin);
+  $("edFlexBox").classList.toggle("hidden", !isFlex(w));
+  const canDel = state.isAdmin || (own && state.cfg.phase === "wuensche" && w.status === "offen");
+  $("edDelete").classList.toggle("hidden", !canDel);
+  if (state.isAdmin) {
+    $("edFrom").value = w.start; $("edTo").value = w.end; $("edPrio").value = w.prio; $("edStatus").value = w.status; $("edReason").value = w.reason || "";
+    $("edLen").value = w.len || ""; $("edAFrom").value = w.aStart || ""; $("edATo").value = w.aEnd || "";
+  }
+  $("editModal").classList.add("on");
+}
+const closeEdit = () => { $("editModal").classList.remove("on"); state.editId = null; };
+async function saveEdit() {
+  const w = state.wishes.find(x => x.id === state.editId); if (!w) return;
+  const start = $("edFrom").value, end = $("edTo").value, status = $("edStatus").value;
+  if (!isValidIso(start) || !isValidIso(end) || start > end) { toast("Bitte gültige Daten eingeben (Von ≤ Bis).", "err"); return; }
+  const upd = { ...w, start, end, prio: $("edPrio").value, status, reason: $("edReason").value.trim(), updatedAt: Date.now(), by: state.user };
+  if (!isFlex(w)) upd.orig = keepOrig(w, start, end);
+  if (isFlex(w)) {
+    upd.len = Math.max(1, Number($("edLen").value) || 1);
+    const as = $("edAFrom").value, ae = $("edATo").value;
+    if ((as || ae) && (!isValidIso(as) || !isValidIso(ae) || as > ae)) { toast("Zugeteilter Zeitraum ungültig.", "err"); return; }
+    upd.aStart = as || ""; upd.aEnd = ae || "";
+    if ((status === "zugeteilt" || status === "bestaetigt") && !upd.aStart) { toast("Für «zugeteilt/bestätigt» bitte «Zugeteilt von/bis» ausfüllen.", "err", 7000); return; }
+  }
+  const r = analyse(start, end, w.name, upd.prio, w.id, isFlex(w) ? upd.len : 0);
+  const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Samstage") && !e.includes("Sperrtag"));
+  if (hard.length) { toast("❌ " + esc(hard.join(" ")), "err", 8000); return; }
+  try { await backend.setWish(upd); toast("💾 Gespeichert."); closeEdit(); }
+  catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
+async function deleteWish(id) {
+  const w = state.wishes.find(x => x.id === id); if (!w) return;
+  if (!confirm(`Wunsch löschen?\n\n${w.name}: ${wishLabel(w)} (${PRIO_LABEL[w.prio]})`)) return;
+  try { await backend.deleteWish(id); toast("🗑️ Gelöscht.", "info"); closeEdit(); }
+  catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
+function keepOrig(w, start, end) {
+  const o = w.orig && w.orig.start ? w.orig : { start: w.start, end: w.end };
+  return (o.start === start && o.end === end) ? null : o;
+}
+async function moveWish(id, delta) {
+  const w = state.wishes.find(x => x.id === id); if (!w || !delta) return;
+  let upd;
+  if (isFlex(w) && w.aStart && isGranted(w)) {
+    upd = { ...w, aStart: addDays(w.aStart, delta), aEnd: addDays(w.aEnd, delta) };
+    if (!inYear(upd.aStart) || !inYear(upd.aEnd)) { toast("❌ Nur innerhalb des Jahres möglich.", "err"); renderGantt(); return; }
+    const clash = state.wishes.find(x => x.name === w.name && x.id !== w.id && isGranted(x) && effRange(x) && overlap(effRange(x), { start: upd.aStart, end: upd.aEnd }));
+    if (clash) { toast(`❌ Überschneidet sich mit ${esc(wishLabel(clash))}.`, "err"); renderGantt(); return; }
+    if (upd.aStart < w.start || upd.aEnd > w.end) toast("Hinweis: liegt jetzt (teilweise) ausserhalb des gewünschten Zeitfensters.", "info", 6000);
+  } else {
+    upd = { ...w, start: addDays(w.start, delta), end: addDays(w.end, delta) };
+    if (!isFlex(w)) upd.orig = keepOrig(w, upd.start, upd.end);
+    const r = analyse(upd.start, upd.end, w.name, w.prio, w.id, isFlex(w) ? Number(w.len) : 0);
+    const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Keine Arbeitstage") && !e.includes("Samstage") && !e.includes("Sperrtag"));
+    if (hard.length) { toast("❌ Verschieben nicht möglich: " + esc(hard.join(" ")), "err", 7000); renderGantt(); return; }
+  }
+  try {
+    await backend.setWish({ ...upd, updatedAt: Date.now(), by: state.user, reason: w.reason ? w.reason : "manuell verschoben" });
+    const r = effRange(upd) || upd;
+    toast(`↔️ ${esc(w.name)}: neu ${esc(fmtRange(r.start, r.end))} (${workDays(w.name, r.start, r.end)} Tage)`, "info");
+  } catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
+
+/* ---------------------- Darstellung ---------------------- */
+function setTab(t) {
+  state.tab = t;
+  for (const b of $("tabs").querySelectorAll(".tab")) b.classList.toggle("on", b.dataset.tab === t);
+  $("calCard").classList.toggle("hidden", t !== "kalender");
+  $("ganttCard").classList.toggle("hidden", t !== "uebersicht");
+  $("teamCard").classList.toggle("hidden", t !== "team");
+  renderAll();
+}
+function renderAll() {
+  renderBanners(); renderBalance(); renderCalendar(); renderGantt(); renderMyWishes();
+  if (state.isAdmin) { renderAdminTable(); renderRules(); renderLastRun(); renderTeam(); }
+  renderActionBar();
+}
+function renderBanners() {
+  const ph = state.cfg.phase;
+  const txt = ph === "wuensche" ? `📝 <b>Wunschphase offen – bitte bis ${EINGABE_BIS} eintragen.</b> Andere sehen Ihre Wünsche nicht. Wichtig: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
+    : ph === "geschlossen" ? "🔒 <b>Wunschphase geschlossen:</b> Die Ferien werden jetzt verteilt. Änderungen nur noch über die Teamleitung."
+    : "📢 <b>Ferienplan veröffentlicht:</b> Im Kalender sehen Sie die bestätigten Ferien aller.";
+  $("phaseText").innerHTML = txt; $("phaseBanner").classList.toggle("on", !!state.user);
+  $("phaseSelect").value = ph;
+  $("maxMustInput").value = state.cfg.maxMust ?? 1;
+  $("nsWeeksInput").value = state.cfg.nebensaisonWochen ?? 2;
+  const sr = state.cfg.samstagRegel || {};
+  $("satRuleOn").checked = !!sr.aktiv; $("satRuleFrom").value = sr.start || ""; $("satRuleTo").value = sr.end || "";
+}
+function renderBalance() {
+  const banner = $("balanceBanner");
+  const who = state.isAdmin ? state.bookFor : state.user;
+  if (!who) {
+    $("balanceText").textContent = "Bitte oben Ihren Namen wählen";
+    $("balanceSub").textContent = "Danach mit Ihrem Kürzel anmelden und Ferienwünsche eintragen.";
+    $("balanceBar").style.width = "0"; banner.style.borderLeftColor = "#9ca3af"; return;
+  }
+  const p = PERSON[who], mine = state.wishes.filter(w => w.name === who);
+  const wished = mine.reduce((s, w) => s + wishDays(w), 0);
+  const conf = mine.filter(w => w.status === "bestaetigt").reduce((s, w) => s + grantedDays(w), 0);
+  const must = mine.filter(w => w.prio === "must").length;
+  const ns = nsDays(who, false), nsReq = nsRequired(who);
+  $("balanceText").textContent = `${who}: Guthaben ${p.tage} Tage (${p.pensum} %)`;
+  $("balanceSub").innerHTML = esc(`${plural(mine.length, "Wunsch", "Wünsche")} mit total ${wished} Tagen · ⭐ Must: ${must} von ${state.cfg.maxMust ?? 1}`) +
+    ` · Nebensaison (Jan–März, Okt–Dez): <b style="color:${ns >= nsReq ? "#15803d" : "#b45309"}">${ns} von min. ${nsReq} Tagen</b>` +
+    (state.isAdmin || state.cfg.phase === "veroeffentlicht" ? esc(` · bestätigt: ${conf} Tage`) : "") +
+    ` · Abgezogen werden nur Arbeitstage (frei: ${esc(freiTxt(p))})`;
+  $("balanceBar").style.width = Math.min(100, wished / p.tage * 100) + "%";
+  $("balanceBar").style.background = p.color; banner.style.borderLeftColor = p.color;
+}
+function renderCalendar() {
+  const { year, month } = state.view;
+  $("monthTitle").textContent = `${MONATE[month]} ${year}`;
+  const first = new Date(year, month, 1), offset = (first.getDay() + 6) % 7;
+  const weeks = Math.ceil((offset + new Date(year, month + 1, 0).getDate()) / 7);
+  let cur = toIso(new Date(year, month, 1 - offset));
+  const range = currentRange();
+  const vis = visibleWishes().map(w => ({ w, r: displayRange(w) }));
+  const conf = state.isAdmin ? liveConflicts().res : new Map();
+  let html = "";
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = fromIso(cur), cls = ["day"];
+    if (d.getMonth() !== month) cls.push("other");
+    if (!inYear(cur)) cls.push("outside");
+    const g = d.getDay(), hol = holidayName(cur), sch = schoolName(cur);
+    if (g === 0 || g === 6) cls.push("weekend");
+    if (hol) cls.push("holiday");
+    if (sch) cls.push("school");
+    const sp = sperrName(cur); if (sp) cls.push("sperr");
+    if (range && cur >= range[0] && cur <= range[1]) { cls.push("in-range"); if (cur === range[0] || cur === range[1]) cls.push("range-edge"); }
+    const list = vis.filter(x => cur >= x.r.start && cur <= x.r.end)
+      .sort((a, b) => a.r.win - b.r.win || PRIO_ORDER.indexOf(a.w.prio) - PRIO_ORDER.indexOf(b.w.prio) || NAMES.indexOf(a.w.name) - NAMES.indexOf(b.w.name));
+    const chips = list.map(({ w, r }) => {
+      const st = shownStatus(w), c = colorOf(w.name);
+      const cc = ["chip", "st-" + st]; if (conf.has(w.id)) cc.push("conflict"); if (!isWorkday(w.name, cur)) cc.push("free-day"); if (r.win) cc.push("flexwin");
+      const showPrio = state.isAdmin || w.name === state.user;
+      const tip = `${w.name} · ${wishLabel(w)} · ${PRIO_LABEL[w.prio]} · ${STATUS_LABEL[st]}` + (conf.has(w.id) ? `\n⚠️ ${conf.get(w.id)}` : "");
+      return `<div class="${cc.join(" ")}" style="background-color:${c};border-color:${c}" title="${esc(tip)}" data-wish="${esc(w.id)}">
+        ${showPrio ? `<span class="prio ${w.prio === "must" ? "must" : ""}">${PRIO_SHORT[w.prio]}</span>` : ""}<span class="cn">${r.win ? "~" : ""}${esc(w.name)}</span></div>`;
+    }).join("");
+    const schStart = sch && (d.getDate() === 1 || schoolName(addDays(cur, -1)) !== sch);
+    html += `<div class="${cls.join(" ")}" data-date="${cur}"><span class="num">${d.getDate()}</span>
+      ${hol ? `<span class="hol-name">${esc(hol)}</span>` : ""}${sp ? `<span class="sperr-name">⛔ ${esc(sp)}</span>` : ""}${schStart ? `<span class="school-name">${esc(sch)}</span>` : ""}${chips}</div>`;
+    cur = addDays(cur, 1);
+  }
+  $("calGrid").innerHTML = html;
+}
+function renderGantt() {
+  if (!state.isAdmin || state.tab !== "uebersicht") return;
+  const { year, month } = state.view;
+  $("ganttTitle").textContent = `${MONATE[month]} ${year}`;
+  const n = new Date(year, month + 1, 0).getDate();
+  const days = Array.from({ length: n }, (_, i) => toIso(new Date(year, month, i + 1)));
+  const dcls = d => { const g = wd(d); return holidayName(d) ? "hol" : (g === 0 || g === 6) ? "we" : ""; };
+  const drag = state.drag;
+  const shifted = w => {
+    if (!drag || drag.id !== w.id || !drag.delta) return w;
+    if (isFlex(w) && w.aStart && isGranted(w)) return { ...w, aStart: addDays(w.aStart, drag.delta), aEnd: addDays(w.aEnd, drag.delta) };
+    return { ...w, start: addDays(w.start, drag.delta), end: addDays(w.end, drag.delta) };
+  };
+  const list = state.wishes.map(shifted);
+  const { res: conf } = liveConflicts();
+  const absent = buildAbsentMap(list.filter(isGranted));
+  let h = `<tr><th class="nm">${MONATE[month]}</th>` + days.map(d => {
+    const sch = schoolName(d), hol = holidayName(d);
+    const sp = sperrName(d);
+    return `<th class="${dcls(d)} ${sch ? "school" : ""} ${sp ? "sperr" : ""}" title="${esc([hol, sch, sp && "⛔ Sperrtag " + sp].filter(Boolean).join(" · "))}">${WT_KURZ[wd(d)]}<br>${fromIso(d).getDate()}</th>`;
+  }).join("") + "</tr>";
+  for (const grp of GRUPPEN) {
+    h += `<tr class="grp"><td class="nm">${esc(grp)}</td><td colspan="${n}"></td></tr>`;
+    for (const p of MITARBEITENDE.filter(m => m.gruppe === grp)) {
+      const mine = list.filter(w => w.name === p.name).map(w => ({ w, r: displayRange(w) }))
+        .sort((a, b) => a.r.win - b.r.win || isGranted(b.w) - isGranted(a.w));
+      const used = state.wishes.filter(w => w.name === p.name && isGranted(w)).reduce((s, w) => s + grantedDays(w), 0);
+      h += `<tr><td class="nm"><span class="dot-c" style="background:${p.color}"></span>${esc(p.name)}${p.rolle ? ` <b style="font-size:10px">${esc(p.rolle)}</b>` : ""} <span class="hint" style="font-size:11px">${p.pensum}% · ${used}/${p.tage}</span></td>`;
+      for (const d of days) {
+        const hit = mine.find(x => d >= x.r.start && d <= x.r.end);
+        let inner = "";
+        if (!hit) {
+          const g = list.find(w => w.name === p.name && w.status !== "abgelehnt" && origOf(w) && !origOf(w).win && d >= origOf(w).start && d <= origOf(w).end);
+          if (g) inner = `<div class="ghost" style="border-color:${p.color}" title="${esc(`Ursprünglicher Wunsch ${g.name}: ${fmtRange(origOf(g).start, origOf(g).end)}`)}"></div>`;
+        }
+        if (hit) {
+          const { w, r } = hit;
+          const bc = ["blk", "st-" + w.status];
+          if (r.win) bc.push("flexwin");
+          if (d === r.start || d === days[0]) bc.push("first");
+          if (d === r.end || d === days[n - 1]) bc.push("last");
+          if (conf.has(w.id)) bc.push("conflict");
+          if (drag && drag.id === w.id) bc.push("dragging");
+          if (!isWorkday(w.name, d) && !r.win) bc.push("nc");
+          const label = (d === r.start || d === days[0]) ? (r.win ? `~${w.len}` : PRIO_SHORT[w.prio]) : "";
+          const o = origOf(w);
+          if (o && !o.win && (d === r.start || d === days[0])) bc.push("moved");
+          const tip = `${w.name} · ${wishLabel(w)} · ${PRIO_LABEL[w.prio]} · ${STATUS_LABEL[w.status]}` + (o && !o.win ? `\nUrsprünglicher Wunsch: ${fmtRange(o.start, o.end)}` : "") +
+            (isFlex(w) && !r.win ? `\nZugeteilt: ${fmtRange(r.start, r.end)}` : "") + (w.reason ? `\n${w.reason}` : "") + (conf.has(w.id) ? `\n⚠️ ${conf.get(w.id)}` : "");
+          inner = `<div class="${bc.join(" ")}" data-gwish="${esc(w.id)}" style="background:${p.color};border-color:${p.color}" title="${esc(tip)}">${label}</div>`;
+        }
+        h += `<td class="c ${dcls(d)}">${inner}</td>`;
+      }
+      h += "</tr>";
+    }
+    h += `<tr class="count"><td class="nm">Abwesend ${esc(grp)} (Stellen)</td>` + days.map(d => {
+      if (!isOpenDay(d)) return `<td class="c ${dcls(d)}"></td>`;
+      const all = absent.get(d) || [], mineG = all.filter(x => x.group === grp);
+      const pen = mineG.reduce((s, x) => s + x.pensum, 0);
+      const lims = (state.cfg.limits || []).filter(l => limitApplies(l, d, grp));
+      const over = lims.some(l => {
+        const set = l.gruppe === "Alle" ? all : mineG;
+        return l.unit === "pensum" ? set.reduce((s, x) => s + x.pensum, 0) > Number(l.max) : set.length > Number(l.max);
+      });
+      const txt = pen ? String(Math.round(pen / 10) / 10) : "";
+      return `<td class="c ${over ? "over" : ""} ${dcls(d)}" title="${esc(`${mineG.length} Personen / ${pen} % weg` + (lims.length ? "\n" + lims.map(l => `${l.label}: ${limitTxt(l)}`).join("\n") : ""))}">${txt}</td>`;
+    }).join("") + "</tr>";
+  }
+  $("gantt").innerHTML = h;
+}
+function renderMyWishes() {
+  const who = targetName();
+  $("myWishesTitle").textContent = state.isAdmin && who !== state.user ? `Wünsche von ${who}` : "Meine Wünsche";
+  if (!who) { $("myWishes").innerHTML = `<li class="empty">Bitte zuerst anmelden.</li>`; return; }
+  const mine = state.wishes.filter(w => w.name === who).sort((a, b) => PRIO_ORDER.indexOf(a.prio) - PRIO_ORDER.indexOf(b.prio) || a.start.localeCompare(b.start));
+  if (!mine.length) { $("myWishes").innerHTML = `<li class="empty">Noch keine Wünsche eingetragen.</li>`; return; }
+  $("myWishes").innerHTML = mine.map(w => {
+    const st = shownStatus(w), dr = displayRange(w);
+    return `<li data-wish="${esc(w.id)}" style="cursor:pointer"><span class="prio ${w.prio === "must" ? "must" : ""}" style="${w.prio === "must" ? "" : "background:#e5e7eb"}">${PRIO_SHORT[w.prio]}</span>
+      <div class="body"><div><b>${esc(isFlex(w) ? `${w.len} Tage im ${fmtRange(w.start, w.end)}` : fmtRange(w.start, w.end))}</b></div>
+      <div class="meta">${PRIO_LABEL[w.prio]}${isFlex(w) ? " · 🔀 flexibel" : ""} · ${plural(wishDays(w), "Ferientag", "Ferientage")}${isFlex(w) && !dr.win ? ` · zugeteilt ${esc(fmtRange(dr.start, dr.end))}` : ""}${origOf(w) && !origOf(w).win ? ` · ursprünglich ${esc(fmtRange(origOf(w).start, origOf(w).end))}` : ""}${w.reason && w.status !== "offen" ? `<br>${esc(state.isAdmin ? w.reason : staffReason(w.reason))}` : ""}</div></div>
+      <span class="status ${st}">${STATUS_LABEL[st]}</span></li>`;
+  }).join("");
+}
+function renderAdminTable() {
+  const { res: conf } = liveConflicts();
+  let h = `<tr><th>Name</th><th class="r">Guth.</th><th class="r">gewünscht</th><th class="r">zugeteilt</th><th class="r" title="Ferientage (zugeteilt) in Jan–März + Okt–Dez / Minimum">Nebens.</th></tr>`;
+  for (const p of MITARBEITENDE) {
+    const mine = state.wishes.filter(w => w.name === p.name);
+    const wished = mine.reduce((s, w) => s + wishDays(w), 0);
+    const got = mine.filter(isGranted).reduce((s, w) => s + grantedDays(w), 0);
+    const rej = mine.filter(w => w.status === "abgelehnt").length, cf = mine.filter(w => conf.has(w.id)).length;
+    const ns = nsDays(p.name, true), nsReq = nsRequired(p.name);
+    h += `<tr><td><span class="dot-c" style="background:${p.color}"></span>${esc(p.name)} <span class="hint">${esc(p.gruppe)} ${p.pensum}%${p.rolle ? " · " + esc(p.rolle) : ""}</span>
+      ${rej ? `<span class="status abgelehnt">${rej} abgel.</span>` : ""}${cf ? ` <span class="status abgelehnt">⚠️ ${cf}</span>` : ""}</td>
+      <td class="r">${p.tage}</td><td class="r">${wished}</td><td class="r" style="${got > p.tage ? "color:#dc2626;font-weight:800" : ""}">${got}</td>
+      <td class="r" style="${ns < nsReq ? "color:#b45309;font-weight:800" : "color:#15803d"}">${ns}/${nsReq}</td></tr>`;
+  }
+  $("balTable").innerHTML = h;
+}
+function renderRules() {
+  const c = state.cfg;
+  $("limitList").innerHTML = (c.limits || []).map(l => `<li><div class="body"><b>${esc(l.label || "Regel")}</b> · ${esc(l.gruppe)} · ${esc(limitTxt(l))}<br><span class="hint">${fmtDate(l.start)} – ${fmtDate(l.end)}</span></div><button class="x-btn" data-del-limit="${esc(l.id)}">×</button></li>`).join("") || `<li class="empty">Noch keine Regeln.</li>`;
+  const auto = allPairs().filter(p => p.auto).map(p => `<li><div class="body">${esc(p.a)} ✕ ${esc(p.b)} <span class="hint">(TL/Stv, automatisch)</span></div></li>`).join("");
+  $("pairList").innerHTML = auto + ((c.pairs || []).map(p => `<li><div class="body">${esc(p.a)} ✕ ${esc(p.b)}</div><button class="x-btn" data-del-pair="${esc(p.id)}">×</button></li>`).join("")) || `<li class="empty">Noch keine Paare.</li>`;
+  $("sperrList").innerHTML = (c.sperrtage || []).map((x, i) => `<li><div class="body"><b>⛔ ${esc(x.name)}</b><br><span class="hint">${fmtDate(x.start)} – ${fmtDate(x.end)}</span></div><button class="x-btn" data-del-sperr="${i}">×</button></li>`).join("") || `<li class="empty">Keine Sperrtage.</li>`;
+  $("schoolList").innerHTML = (c.schulferien || []).map((s, i) => `<li><div class="body"><b>${esc(s.name)}</b><br><span class="hint">${fmtDate(s.start)} – ${fmtDate(s.end)}</span></div><button class="x-btn" data-del-school="${i}">×</button></li>`).join("") || `<li class="empty">Keine Schulferien erfasst.</li>`;
+}
+function renderLastRun() {
+  const r = state.cfg.lastRun;
+  if (!r) { $("lastRun").innerHTML = ""; return; }
+  const rej = state.wishes.filter(w => w.status === "abgelehnt").sort((a, b) => a.name.localeCompare(b.name));
+  const at = new Date(r.at).toLocaleString("de-CH", { timeZone: "Europe/Zurich" });
+  $("lastRun").innerHTML = `<h3>Letzte Verteilung (${esc(at)})</h3>
+    <div class="hint">Losreihenfolge Runde 1: ${r.order.map((n, i) => `${i + 1}. ${esc(n)}`).join(", ")} (Seed ${r.seed})</div>
+    ${rej.length ? `<h3>Abgelehnt (${rej.length})</h3><ul class="log">${rej.map(w => `<li><b>${esc(w.name)}</b> ${esc(wishLabel(w))} (${PRIO_LABEL[w.prio]}): ${esc(w.reason || "–")}</li>`).join("")}</ul>` : ""}`;
+}
+function renderStatic() {
+  $("yearTitle").textContent = JAHR;
+  $("calHead").innerHTML = ["Mo","Di","Mi","Do","Fr","Sa","So"].map(h => `<div>${h}</div>`).join("");
+  $("legend").innerHTML =
+    `<span><i style="background:#fff;border-color:#2563eb"></i>Wunsch</span>` +
+    `<span><i style="background:transparent;border:2px dashed #2563eb"></i>Zeitfenster (flexibel)</span>` +
+    `<span><i style="background:#2563eb;opacity:.8"></i>vorläufig zugeteilt</span>` +
+    `<span><i style="background:#2563eb"></i>bestätigt</span>` +
+    `<span><i style="background:repeating-linear-gradient(45deg,#f3f4f6 0 3px,#d1d5db 3px 6px)"></i>abgelehnt</span>` +
+    `<span><span class="prio must">⭐</span>Must</span>` +
+    `<span><i style="background:#fff;box-shadow:inset 0 3px 0 #7dd3fc;border-color:#e3e6ea"></i>Schulferien</span>` +
+    `<span><i style="background:repeating-linear-gradient(45deg,#fff1f1,#fff1f1 3px,#fecaca 3px,#fecaca 6px)"></i>Feiertag BS</span>` +
+    `<span><i style="background:repeating-linear-gradient(-45deg,#e5e7eb,#e5e7eb 3px,#9ca3af 3px,#9ca3af 6px)"></i>⛔ Sperrtag</span>`;
+}
+
+/* ---------------------- Team verwalten (Admin) ---------------------- */
+function renderTeam() {
+  if (state.tab !== "team") return;
+  const box = (i, list, b) => [1, 2, 3, 4, 5, 6].map(x => `<label title="${WT_NAMEN[x]}" style="display:inline-flex;flex-direction:column;align-items:center;font-size:11px;margin-right:2px">${WT_NAMEN[x]}<input type="checkbox" data-i="${i}" data-free="${x}" data-b="${b}" ${list.includes(x) ? "checked" : ""}></label>`).join("");
+  let h = `<tr><th>Name</th><th>Kürzel</th><th>Gruppe</th><th>Pensum %</th><th>Ferientage</th><th>Rolle</th><th>Freie Tage</th><th>Arbeitstage/Woche</th><th></th></tr>`;
+  MITARBEITENDE.forEach((p, i) => {
+    h += `<tr><td><span class="dot-c" style="background:${p.color}"></span><input data-i="${i}" data-f="name" value="${esc(p.name)}" style="width:110px"></td>
+      <td><input data-i="${i}" data-f="kuerzel" value="${esc(p.kuerzel)}" style="width:60px;text-transform:uppercase"></td>
+      <td><select data-i="${i}" data-f="gruppe">${GRUPPEN.map(g => `<option ${g === p.gruppe ? "selected" : ""}>${g}</option>`).join("")}</select></td>
+      <td><input type="number" min="5" max="100" step="5" data-i="${i}" data-f="pensum" value="${p.pensum}" style="width:64px"></td>
+      <td><input type="number" min="0" max="60" step="0.5" data-i="${i}" data-f="tage" value="${p.tage}" style="width:64px"></td>
+      <td><select data-i="${i}" data-f="rolle"><option value="" ${!p.rolle ? "selected" : ""}>–</option><option value="TL" ${p.rolle === "TL" ? "selected" : ""}>TL</option><option value="Stv" ${p.rolle === "Stv" ? "selected" : ""}>Stv</option></select></td>
+      <td style="white-space:nowrap">${p.freiB ? `<span class="hint">gerade KW:</span> ` : ""}${box(i, p.frei, 0)}
+        ${p.freiB ? `<br><span class="hint">ungerade KW:</span> ${box(i, p.freiB, 1)}` : ""}
+        <br><label class="hint"><input type="checkbox" data-i="${i}" data-f="wechsel" ${p.freiB ? "checked" : ""}> im Wechsel (gerade/ungerade KW)</label></td>
+      <td class="r">${String(perWeek(p.name)).replace(".", ",")}</td>
+      <td>${p.name === ADMIN_NAME ? "" : `<button class="x-btn" data-del-person="${i}" title="Person entfernen">×</button>`}</td></tr>`;
+  });
+  $("teamTable").innerHTML = h;
+}
+function peopleForSave() { return MITARBEITENDE.map(({ color, ...p }, i) => ({ ...p, ...(color !== PALETTE[i % PALETTE.length] ? { color } : {}) })); }
+async function onTeamChange(e) {
+  const el = e.target, i = Number(el.dataset.i); if (Number.isNaN(i)) return;
+  const people = peopleForSave(), p = people[i];
+  if (el.dataset.free) {
+    const key = el.dataset.b === "1" ? "freiB" : "frei";
+    const set = new Set(p[key] || []); el.checked ? set.add(Number(el.dataset.free)) : set.delete(Number(el.dataset.free));
+    p[key] = [...set].sort();
+  } else if (el.dataset.f === "wechsel") {
+    p.freiB = el.checked ? [...p.frei] : null;
+  } else if (el.dataset.f === "name") {
+    const nn = el.value.trim();
+    if (!nn || people.some((x, k) => k !== i && x.name === nn)) { toast("Name fehlt oder existiert schon.", "err"); renderTeam(); return; }
+    if (p.name === ADMIN_NAME) { toast("Der Admin-Name ist in der Datei festgelegt (ADMIN_NAME).", "err"); renderTeam(); return; }
+    const old = p.name; p.name = nn;
+    const moved = state.wishes.filter(w => w.name === old).map(w => ({ ...w, name: nn }));
+    if (moved.length) await backend.setWishes(moved);
+    await saveConfig({ people, pairs: (state.cfg.pairs || []).map(x => ({ ...x, a: x.a === old ? nn : x.a, b: x.b === old ? nn : x.b })),
+      vorrang: (state.cfg.vorrang || []).map(n => n === old ? nn : n) });
+    return;
+  } else if (["pensum", "tage"].includes(el.dataset.f)) {
+    p[el.dataset.f] = Math.max(0, Number(el.value) || 0);
+  } else {
+    p[el.dataset.f] = el.dataset.f === "kuerzel" ? el.value.trim().toUpperCase() : el.value;
+  }
+  await saveConfig({ people });
+}
+async function deletePerson(i) {
+  const people = peopleForSave(), p = people[i];
+  const ws = state.wishes.filter(w => w.name === p.name);
+  if (!confirm(`${p.name} entfernen?` + (ws.length ? `\n\n${ws.length} Wünsche dieser Person werden ebenfalls gelöscht.` : ""))) return;
+  if (ws.length) await backend.deleteWishes(ws.map(w => w.id));
+  people.splice(i, 1);
+  await saveConfig({ people, pairs: (state.cfg.pairs || []).filter(x => x.a !== p.name && x.b !== p.name), vorrang: (state.cfg.vorrang || []).filter(n => n !== p.name) });
+}
+async function addPerson() {
+  const name = $("newName").value.trim(), kuerzel = $("newKuerzel").value.trim().toUpperCase();
+  if (!name || !kuerzel) { toast("Bitte Name und Kürzel eingeben.", "err"); return; }
+  if (PERSON[name]) { toast("Diesen Namen gibt es schon.", "err"); return; }
+  const people = peopleForSave();
+  people.push({ name, kuerzel, gruppe: $("newGruppe").value, pensum: 100, tage: 25, rolle: "", frei: [], freiB: null });
+  await saveConfig({ people });
+  $("newName").value = ""; $("newKuerzel").value = "";
+  toast(`➕ ${esc(name)} hinzugefügt – bitte Pensum, Ferientage und freie Tage ergänzen.`, "info");
+}
+
+/* ---------------------- Testdaten (nur Demo) ---------------------- */
+async function fillDemo() {
+  if (state.wishes.length && !confirm("Es gibt schon Einträge. Trotzdem zusätzliche Testwünsche erzeugen?")) return;
+  const rng = mulberry32(Date.now() % 100000);
+  const pick = arr => arr[Math.floor(rng() * arr.length)];
+  const mondays = []; let d = "2027-01-04"; while (d < "2027-12-20") { mondays.push(d); d = addDays(d, 7); }
+  const summer = mondays.filter(m => m >= "2027-06-28" && m <= "2027-08-16");
+  const ns = mondays.filter(m => fromIso(m).getMonth() <= 1 || fromIso(m).getMonth() >= 9);
+  const list = [], now = Date.now();
+  for (const p of MITARBEITENDE) {
+    const blocks = state.wishes.filter(w => w.name === p.name && !isFlex(w)).map(w => ({ start: w.start, end: w.end }));
+    const hasMust = state.wishes.some(w => w.name === p.name && w.prio === "must");
+    const add = (start, len, prio) => {
+      const w = { start, end: addDays(start, len - 1) };
+      if (blocks.some(b => overlap(b, w)) || !inYear(w.end)) return;
+      blocks.push(w); list.push({ id: newId(), name: p.name, type: "fix", ...w, prio, status: "offen", reason: "", createdAt: now, updatedAt: now, by: "Testdaten" });
+    };
+    if (!hasMust && rng() < 0.6) add(pick(summer), pick([6, 13]), "must");      // Mo–Sa bzw. Mo–Sa+1 Woche
+    add(pick(ns), pick([5, 6, 12, 13]), "p1");
+    if (rng() < 0.6) {                                                            // flexibler Wunsch: 1 Woche in 4 Wochen
+      const s = pick(mondays.slice(0, -4));
+      list.push({ id: newId(), name: p.name, type: "flex", start: s, end: addDays(s, 27), len: Math.round(perWeek(p.name)) || 1, aStart: "", aEnd: "",
+        prio: pick(["p1", "p2"]), status: "offen", reason: "", createdAt: now, updatedAt: now, by: "Testdaten" });
+    } else add(pick(mondays), pick([5, 6]), "p2");
+  }
+  await backend.setWishes(list);
+  
+  toast(`🧪 ${list.length} Testwünsche erzeugt. Als Silvan (PIN 1234) anmelden → «Fair verteilen».`, "info", 9000);
+}
+
+/* ---------------------- Ereignisse ---------------------- */
+function bindEvents() {
+  document.querySelectorAll("[data-nav]").forEach(b => b.addEventListener("click", () => {
+    const v = state.view; v.month += Number(b.dataset.nav);
+    if (v.month < 0) { v.month = 11; v.year--; } if (v.month > 11) { v.month = 0; v.year++; } renderAll();
+  }));
+  $("tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) setTab(t.dataset.tab); });
+  $("teamTable").addEventListener("change", onTeamChange);
+  $("teamTable").addEventListener("click", e => { const b = e.target.closest("[data-del-person]"); if (b) deletePerson(Number(b.dataset.delPerson)); });
+  $("addPersonBtn").addEventListener("click", addPerson);
+  for (const g of GRUPPEN) $("newGruppe").add(new Option(g, g));
+
+  const grid = $("calGrid");
+  grid.addEventListener("click", e => {
+    const chip = e.target.closest("[data-wish]");
+    if (chip && state.sel.phase !== "end") { const w = state.wishes.find(x => x.id === chip.dataset.wish); if (w && (state.isAdmin || w.name === state.user)) { openEdit(w.id); return; } }
+    const day = e.target.closest(".day"); if (day) onDayClick(day.dataset.date);
+  });
+  grid.addEventListener("mouseover", e => {
+    if (state.sel.phase !== "end") return;
+    const day = e.target.closest(".day"); if (day && day.dataset.date !== state.hover) { state.hover = day.dataset.date; renderCalendar(); }
+  });
+  grid.addEventListener("mouseleave", () => { if (state.hover) { state.hover = null; renderCalendar(); } });
+
+  // Übersicht: ziehen = verschieben, klicken = bearbeiten
+  $("gantt").addEventListener("pointerdown", e => {
+    const b = e.target.closest("[data-gwish]"); if (!b) return;
+    e.preventDefault();
+    const cell = b.closest("td");
+    state.drag = { id: b.dataset.gwish, x0: e.clientX, w: cell.getBoundingClientRect().width, delta: 0 };
+    renderGantt();
+  });
+  window.addEventListener("pointermove", e => {
+    const d = state.drag; if (!d) return;
+    const delta = Math.round((e.clientX - d.x0) / d.w);
+    if (delta !== d.delta) { d.delta = delta; renderGantt(); }
+  });
+  window.addEventListener("pointerup", () => {
+    const d = state.drag; if (!d) return;
+    state.drag = null;
+    if (d.delta) moveWish(d.id, d.delta); else { renderGantt(); openEdit(d.id); }
+  });
+
+  $("myWishes").addEventListener("click", e => { const li = e.target.closest("[data-wish]"); if (li) openEdit(li.dataset.wish); });
+  $("fromInput").addEventListener("change", onInputsChanged);
+  $("toInput").addEventListener("change", onInputsChanged);
+  $("prioPick").addEventListener("click", e => { const b = e.target.closest("button"); if (b && !b.disabled) { state.prio = b.dataset.prio; renderActionBar(); } });
+  $("modePick").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.mode === "flex" && state.mode !== "flex") { state.flexLen = Math.max(1, Math.round(perWeek(targetName()))); $("flexLen").value = state.flexLen; }
+    state.mode = b.dataset.mode; renderActionBar();
+  });
+  $("flexLen").addEventListener("input", () => { state.flexLen = Math.max(1, Math.min(60, Number($("flexLen").value) || 1)); renderActionBar(); });
+  $("saveWishBtn").addEventListener("click", saveWish);
+  $("cancelSelBtn").addEventListener("click", clearSelection);
+
+  $("loginOk").addEventListener("click", submitLogin);
+  $("loginCancel").addEventListener("click", cancelLogin);
+  $("loginInput").addEventListener("keydown", e => { if (e.key === "Enter") submitLogin(); if (e.key === "Escape") cancelLogin(); });
+  $("logoutBtn").addEventListener("click", logout);
+
+  $("edCancel").addEventListener("click", closeEdit);
+  $("edSave").addEventListener("click", saveEdit);
+  $("edDelete").addEventListener("click", () => deleteWish(state.editId));
+  $("editModal").addEventListener("click", e => { if (e.target === $("editModal")) closeEdit(); });
+
+  $("phaseSelect").addEventListener("change", () => saveConfig({ phase: $("phaseSelect").value }));
+  $("maxMustInput").addEventListener("change", () => saveConfig({ maxMust: Math.max(0, Number($("maxMustInput").value) || 0) }));
+  $("nsWeeksInput").addEventListener("change", () => saveConfig({ nebensaisonWochen: Math.max(0, Number($("nsWeeksInput").value) || 0) }));
+  const saveSat = () => {
+    const s = $("satRuleFrom").value, e = $("satRuleTo").value;
+    if (!isValidIso(s) || !isValidIso(e) || s > e) { toast("Bitte gültigen Zeitraum für die Samstagsregel eingeben.", "err"); return; }
+    saveConfig({ samstagRegel: { aktiv: $("satRuleOn").checked, start: s, end: e } });
+  };
+  ["satRuleOn", "satRuleFrom", "satRuleTo"].forEach(id => $(id).addEventListener("change", saveSat));
+  $("distributeBtn").addEventListener("click", runDistribution);
+  $("confirmAllBtn").addEventListener("click", confirmAll);
+  $("exportBtn").addEventListener("click", exportCsv);
+
+  $("addLimitBtn").addEventListener("click", () => {
+    const start = $("limFrom").value, end = $("limTo").value, max = Number($("limMax").value);
+    if (!isValidIso(start) || !isValidIso(end) || start > end) { toast("Bitte gültigen Zeitraum eingeben.", "err"); return; }
+    if (!(max >= 0)) { toast("Bitte eine Zahl bei «Max.» eingeben.", "err"); return; }
+    saveConfig({ limits: [...(state.cfg.limits || []), { id: newId().slice(0, 8), label: $("limLabel").value.trim() || "Regel", gruppe: $("limGroup").value,
+      unit: $("limUnit").value, nurSamstag: $("limSat").checked, start, end, max }] });
+    $("limLabel").value = "";
+  });
+  $("addPairBtn").addEventListener("click", () => {
+    const a = $("pairA").value, b = $("pairB").value;
+    if (a === b) { toast("Bitte zwei verschiedene Personen wählen.", "err"); return; }
+    if (allPairs().some(p => (p.a === a && p.b === b) || (p.a === b && p.b === a))) { toast("Dieses Paar gibt es schon.", "info"); return; }
+    saveConfig({ pairs: [...(state.cfg.pairs || []), { id: newId().slice(0, 8), a, b }] });
+  });
+  $("addSperrBtn").addEventListener("click", () => {
+    const start = $("spFrom").value, end = $("spTo").value || $("spFrom").value;
+    if (!isValidIso(start) || !isValidIso(end) || start > end) { toast("Bitte gültiges Datum eingeben.", "err"); return; }
+    saveConfig({ sperrtage: [...(state.cfg.sperrtage || []), { name: $("spName").value.trim() || "Sperrtag", start, end }].sort((x, y) => x.start.localeCompare(y.start)) });
+    $("spName").value = ""; $("spFrom").value = ""; $("spTo").value = "";
+  });
+  $("addSchoolBtn").addEventListener("click", () => {
+    const start = $("schFrom").value, end = $("schTo").value;
+    if (!isValidIso(start) || !isValidIso(end) || start > end) { toast("Bitte gültigen Zeitraum eingeben.", "err"); return; }
+    saveConfig({ schulferien: [...(state.cfg.schulferien || []), { name: $("schName").value.trim() || "Schulferien", start, end }].sort((x, y) => x.start.localeCompare(y.start)) });
+    $("schName").value = "";
+  });
+  document.querySelector("aside").addEventListener("click", e => {
+    const l = e.target.closest("[data-del-limit]"), p = e.target.closest("[data-del-pair]"), s = e.target.closest("[data-del-school]"), sp = e.target.closest("[data-del-sperr]");
+    if (sp && confirm("Sperrtag löschen?")) saveConfig({ sperrtage: state.cfg.sperrtage.filter((_, i) => i !== Number(sp.dataset.delSperr)) });
+    if (l && confirm("Regel löschen?")) saveConfig({ limits: state.cfg.limits.filter(x => x.id !== l.dataset.delLimit) });
+    if (p) saveConfig({ pairs: state.cfg.pairs.filter(x => x.id !== p.dataset.delPair) });
+    if (s) saveConfig({ schulferien: state.cfg.schulferien.filter((_, i) => i !== Number(s.dataset.delSchool)) });
+  });
+
+
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if ($("editModal").classList.contains("on")) closeEdit();
+    else if (state.sel.start && !$("loginModal").classList.contains("on")) clearSelection();
+  });
+}
+
+function setConn(kind, text) { const c = $("conn"); c.classList.remove("live", "off"); if (kind) c.classList.add(kind); $("connText").textContent = text; }
+
+/* ---------------------- Start ---------------------- */
+async function start() {
+  renderStatic(); initSelects(); bindEvents(); renderAll();
+  const notConfigured = Object.values(firebaseConfig).some(v => !v || String(v).includes("HIER_EINFUEGEN"));
+  if (notConfigured) {
+    DEMO = true; backend = createLocalBackend();
+    $("demoBanner").classList.add("on");
+    $("demoFillBtn").addEventListener("click", fillDemo);
+    $("demoResetBtn").addEventListener("click", () => { if (confirm("Alle Testdaten in diesem Browser löschen?")) { backend.resetAll(); toast("🧹 Gelöscht.", "info"); } });
+  } else {
+    try { backend = await createFirestoreBackend(); }
+    catch (err) { setConn("off", "Nicht verbunden"); showError("Firebase konnte nicht geladen werden: " + (err?.message || err)); return; }
+  }
+  backend.subscribe(
+    list => {
+      state.wishes = list
+        .map(w => ({ type: "fix", ...w, prio: w.prio === "p3" ? "p2" : w.prio }))
+        .filter(w => w && isValidIso(w.start) && isValidIso(w.end) && PRIO_LABEL[w.prio] && STATUS_LABEL[w.status]);
+      state.loaded = true; showError(""); renderAll();
+    },
+    cfg => { applyConfig(cfg); restoreLogin(); renderAll(); },
+    err => { setConn("off", "Nicht verbunden"); showError(friendlyError(err)); },
+    fromCache => setConn(fromCache ? "off" : "live", fromCache ? "Offline – letzter Stand" : "Live verbunden")
+  );
+  if (DEMO) setConn("live", "Demo-Modus (lokal)");
+}
+start();
+</script>
+</body>
+</html>
