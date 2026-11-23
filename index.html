@@ -244,7 +244,7 @@
     <div class="prio-pick" id="modePick">
       <button data-mode="fix" title="Genau diese Tage">📌 Genau diese Tage</button>
       <button data-mode="flex" title="Irgendwo in diesem Zeitraum">🔀 Flexibel:</button>
-      <input type="number" id="flexLen" min="1" max="60" value="5" title="Anzahl Ferientage innerhalb des Zeitraums"> <span style="font-size:13px;color:#cbd5e1">Tage</span>
+      <input type="number" id="flexLen" min="1" max="10" step="1" value="1" title="Anzahl Kalenderwochen innerhalb des Zeitraums"> <span style="font-size:13px;color:#cbd5e1">Woche(n)</span>
     </div>
     <div class="prio-pick" id="prioPick">
       <button data-prio="must" class="must" title="Höchste Priorität – wird vor allen anderen Wünschen verteilt">⭐ Must</button>
@@ -257,7 +257,7 @@
 
   <div class="banner error-banner" id="errorBanner"><div class="txt" id="errorText"></div></div>
   <div class="banner demo-banner" id="demoBanner">
-    <div class="txt">🧪 <b>Demo-Modus:</b> Es ist keine Firestore-Datenbank verbunden. Alles wird nur <b>in diesem Browser</b> gespeichert. Admin-PIN in der Demo: <b>1234</b>. Kürzel = Passwort, siehe Reiter «👥 Team».</div>
+    <div class="txt">🧪 <b>Demo-Modus:</b> Es ist keine Firestore-Datenbank verbunden. Alles wird nur <b>in diesem Browser</b> gespeichert. Kürzel = Passwort, siehe Reiter «👥 Team».</div>
     <button class="btn secondary small" id="demoFillBtn">Testdaten erzeugen</button>
     <button class="btn secondary small" id="demoResetBtn">Alles löschen</button>
   </div>
@@ -284,7 +284,7 @@
         <h2 id="monthTitle"></h2>
         <button class="nav-btn" data-nav="1" title="Nächster Monat">▶</button>
       </div>
-      <p class="hint">So geht's: <b>1. Klick</b> auf den ersten Ferientag, <b>2. Klick</b> auf den letzten (auch in einem anderen Monat). Dann oben die <b>Priorität</b> wählen und <b>«Wunsch speichern»</b>. <b>⭐ Must</b> = höchste Priorität (wird zuerst verteilt). <b>🔀 Flexibel</b> = z.B. «irgendwo in diesen 4 Wochen 5 Tage» – die Verteilung sucht den besten Platz.</p>
+      <p class="hint">So geht's: <b>1. Klick</b> auf den ersten Ferientag, <b>2. Klick</b> auf den letzten (auch in einem anderen Monat). Dann oben die <b>Priorität</b> wählen und <b>«Wunsch speichern»</b>. <b>⭐ Must</b> = höchste Priorität (wird zuerst verteilt). <b>🔀 Flexibel</b> = z.B. «1 Kalenderwoche irgendwo in diesen 4 Wochen» – die Verteilung sucht die beste Woche.</p>
       <div class="cal-head" id="calHead"></div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="legend" id="legend"></div>
@@ -302,7 +302,7 @@
 
     <section class="card hidden" id="teamCard">
       <h2>Team: Guthaben, Pensum &amp; freie Tage</h2>
-      <p class="hint">Änderungen werden sofort gespeichert. Abgezogen werden pro Person nur ihre <b>Arbeitstage</b> (Mo–Sa ohne freie Tage, ohne Feiertage). Wer im Wechsel frei hat: «im Wechsel» ankreuzen und die freien Tage für gerade und ungerade Kalenderwochen setzen. Das Kürzel ist das Passwort der Person.</p>
+      <p class="hint">Änderungen werden sofort gespeichert. Abgezogen werden pro Person nur ihre <b>Arbeitstage</b> (Mo–Sa ohne freie Tage, ohne Feiertage). Bei «Halber Tag» angekreuzte Wochentage zählen nur ½. Wer im Wechsel frei hat: «im Wechsel» ankreuzen und die freien Tage für gerade und ungerade Kalenderwochen setzen. Das Kürzel ist das Passwort der Person.</p>
       <div class="gantt-wrap"><table class="bal" id="teamTable" style="min-width:860px"></table></div>
       <div class="add-box" style="margin-top:14px">
         <h3 style="margin-top:0">Person hinzufügen</h3>
@@ -468,7 +468,7 @@
       <div id="edFlexBox" class="hidden">
         <p class="hint" style="margin:0 0 6px">Flexibler Wunsch: «Von/Bis» oben = Zeitfenster.</p>
         <div class="row2">
-          <div class="field"><label>Anzahl Ferientage</label><input type="number" id="edLen" min="1" max="60"></div>
+          <div class="field"><label>Anzahl Kalenderwochen</label><input type="number" id="edLen" min="1" max="10" step="1"></div>
           <div></div>
         </div>
         <div class="row2">
@@ -523,7 +523,8 @@ const START_TEAM = [
   { name: "Silvan", kuerzel: "SKB", tage: 25, pensum: 100, gruppe: "Verkauf", rolle: "TL",  frei: [5] },
   { name: "Sven",   kuerzel: "DES", tage: 25, pensum: 100, gruppe: "Verkauf", rolle: "Stv", frei: [1] },
   { name: "Malte",  kuerzel: "MKR", tage: 20, pensum: 80,  gruppe: "Verkauf", frei: [3, 4] },
-  { name: "Sara",   kuerzel: "SLT", tage: 10, pensum: 40,  gruppe: "Verkauf", frei: [3, 4, 5, 6] }
+  { name: "Sara",   kuerzel: "SLT", tage: 10, pensum: 40,  gruppe: "Verkauf", frei: [3, 4, 5, 6] },
+  { name: "Jacqueline", kuerzel: "JLE", tage: 17.5, pensum: 70, gruppe: "Verkauf", frei: [4, 5], halb: [6] }
 ];
 
 /* Schulferien Basel-Stadt 2027 – Vorschlag, NICHT aus offizieller Quelle geprüft.
@@ -560,7 +561,7 @@ let MITARBEITENDE = [], PERSON = {}, NAMES = [];
 function setPeople(list) {
   MITARBEITENDE = (list || []).filter(m => m && m.name).map((m, i) => ({
     gruppe: GRUPPEN[0], pensum: 100, tage: 25, kuerzel: "", rolle: "", ...m,
-    frei: Array.isArray(m.frei) ? m.frei.map(Number) : [], freiB: Array.isArray(m.freiB) ? m.freiB.map(Number) : null,
+    frei: Array.isArray(m.frei) ? m.frei.map(Number) : [], freiB: Array.isArray(m.freiB) ? m.freiB.map(Number) : null, halb: Array.isArray(m.halb) ? m.halb.map(Number) : [],
     color: m.color || PALETTE[i % PALETTE.length]
   }));
   PERSON = Object.fromEntries(MITARBEITENDE.map(m => [m.name, m]));
@@ -627,20 +628,33 @@ function isWorkday(name, s) {
   const p = PERSON[name]; if (!p) return wd(s) <= 5;
   return !freeDaysOn(p, s).includes(wd(s));
 }
-const workDays = (name, a, b) => datesBetween(a, b).filter(d => isWorkday(name, d)).length;
+/* Gewicht eines Arbeitstags fürs Guthaben: 1 oder 0.5 (Wochentage in «halb») */
+function dayWeight(name, s) {
+  if (!isWorkday(name, s)) return 0;
+  const p = PERSON[name];
+  return p && p.halb.includes(wd(s)) ? 0.5 : 1;
+}
+const workDays = (name, a, b) => datesBetween(a, b).reduce((sum, d) => sum + dayWeight(name, d), 0);
 function perWeek(name) {
   const p = PERSON[name]; if (!p) return 5;
-  const a = 6 - p.frei.length, b = p.freiB ? 6 - p.freiB.length : a;
+  const wk = free => [1, 2, 3, 4, 5, 6].filter(x => !free.includes(x)).reduce((s, x) => s + (p.halb.includes(x) ? 0.5 : 1), 0);
+  const a = wk(p.frei), b = p.freiB ? wk(p.freiB) : a;
   return (a + b) / 2;
 }
+/* Arbeitstage pro Woche gezählt (halbe Tage als ganze) – für die Länge flexibler Wünsche */
+function daysPerWeek(name) {
+  const p = PERSON[name]; if (!p) return 5;
+  const n = free => 6 - free.length;
+  return (n(p.frei) + (p.freiB ? n(p.freiB) : n(p.frei))) / 2;
+}
 const WT_NAMEN = { 1: "Mo", 2: "Di", 3: "Mi", 4: "Do", 5: "Fr", 6: "Sa" };
-const freiTxt = p => (p.frei.map(x => WT_NAMEN[x]).join("+") || "–") + (p.freiB ? ` / ${p.freiB.map(x => WT_NAMEN[x]).join("+") || "–"} (Wechsel)` : "");
+const freiTxt = p => (p.frei.map(x => WT_NAMEN[x]).join("+") || "–") + (p.freiB ? ` / ${p.freiB.map(x => WT_NAMEN[x]).join("+") || "–"} (Wechsel)` : "") + (p.halb.length ? `; ${p.halb.map(x => WT_NAMEN[x]).join("+")} zählt halb` : "");
 
 /* ---------------------- Zustand ---------------------- */
 const state = {
   user: "", isAdmin: false, bookFor: ADMIN_NAME, tab: "kalender",
   view: { year: JAHR, month: 0 },
-  sel: { start: null, end: null, phase: "none" }, hover: null, prio: "p1", mode: "fix", flexLen: 5,
+  sel: { start: null, end: null, phase: "none" }, hover: null, prio: "p1", mode: "fix", flexLen: 1,
   wishes: [], cfg: { ...DEFAULT_CONFIG }, loaded: false, busy: false,
   drag: null, editId: null, loginFor: null
 };
@@ -681,7 +695,8 @@ function effRange(w) {
   if (!isFlex(w)) return { start: w.start, end: w.end };
   return (w.aStart && w.aEnd) ? { start: w.aStart, end: w.aEnd } : null;
 }
-const wishDays = w => isFlex(w) ? (Number(w.len) || 0) : workDays(w.name, w.start, w.end);
+/* Ferientage eines Wunsches: fix = Arbeitstage im Zeitraum; flexibel = zugeteilte Woche(n) bzw. Schätzung Wochen × Arbeitstage/Woche */
+const wishDays = w => isFlex(w) ? (effRange(w) ? workDays(w.name, effRange(w).start, effRange(w).end) : (Number(w.len) || 0) * perWeek(w.name)) : workDays(w.name, w.start, w.end);
 const grantedDays = w => { const r = effRange(w); return r ? workDays(w.name, r.start, r.end) : 0; };
 /* Was wird angezeigt? Zugeteilte flexible Wünsche am zugeteilten Ort, sonst das Zeitfenster. */
 function displayRange(w) {
@@ -689,7 +704,7 @@ function displayRange(w) {
   if (isFlex(w) && (st === "zugeteilt" || st === "bestaetigt") && w.aStart && w.aEnd) return { start: w.aStart, end: w.aEnd, win: false };
   return { start: w.start, end: w.end, win: isFlex(w) };
 }
-const wishLabel = w => isFlex(w) ? `${w.len} Tage flexibel im ${fmtRange(w.start, w.end)}` : fmtRange(w.start, w.end);
+const wishLabel = w => isFlex(w) ? `${plural(Number(w.len), "Woche", "Wochen")} flexibel im ${fmtRange(w.start, w.end)}` : fmtRange(w.start, w.end);
 const overlapsSchool = r => datesBetween(r.start, r.end).some(d => schoolName(d));
 
 function allPairs() {
@@ -854,7 +869,7 @@ function nsDays(name, onlyGranted) {
     let r = effRange(w);
     if (!r && isFlex(w)) { // offenes Zeitfenster: zählt nur, wenn es ganz in der Nebensaison liegt
       const all = datesBetween(w.start, w.end).every(d => NS_MONATE.includes(fromIso(d).getMonth()));
-      if (all) sum += Number(w.len) || 0; continue;
+      if (all) sum += wishDays(w); continue;
     }
     if (!r) continue;
     sum += datesBetween(r.start, r.end).filter(d => isWorkday(name, d) && NS_MONATE.includes(fromIso(d).getMonth())).length;
@@ -871,18 +886,24 @@ function nsDays(name, onlyGranted) {
    4. Fixe Wünsche ganz oder gar nicht; flexible Wünsche bekommen den Platz im Fenster,
       an dem am wenigsten Pensum der eigenen Gruppe abwesend ist (Montag-Start und Samstag bevorzugt).
    ===================================================================== */
-function flexCandidates(w) {
+/* Flexible Wünsche = ganze Kalenderwochen (Mo–Sa) innerhalb des Zeitfensters.
+   Variante ohne letzten Samstag als Ausweichmöglichkeit (z.B. wenn der Samstag belegt ist). */
+function weekStarts(w) {
   const N = Number(w.len) || 0, out = [];
   if (N < 1) return out;
-  for (const s of datesBetween(w.start, w.end)) {
-    if (!isWorkday(w.name, s)) continue;
-    let c = 0, cur = s, e = null;
-    while (cur <= w.end) { if (isWorkday(w.name, cur)) c++; if (c === N) { e = cur; break; } cur = addDays(cur, 1); }
-    if (!e) break;
-    out.push({ start: s, end: e });
+  let m = addDays(w.start, (8 - wd(w.start)) % 7);           // erster Montag ab Fensterbeginn
+  while (addDays(m, 7 * N - 2) <= w.end) { out.push(m); m = addDays(m, 7); }
+  return out;
+}
+function flexCandidates(w) {
+  const N = Number(w.len) || 0, out = [];
+  for (const m of weekStarts(w)) {
+    out.push({ start: m, end: addDays(m, 7 * N - 2), sat: true });
+    out.push({ start: m, end: addDays(m, 7 * N - 3), sat: false });
   }
   return out;
 }
+
 function distribute(seed) {
   const rng = mulberry32(seed);
   const fixed = state.wishes.filter(w => w.status === "bestaetigt");
@@ -932,13 +953,13 @@ function distribute(seed) {
       if (v) { firstReason ||= v; continue; }
       let load = 0;
       for (const d of datesBetween(c.start, c.end)) if (isWorkday(w.name, d)) load += (absent.get(d) || []).filter(x => x.group === p.gruppe).reduce((s, x) => s + x.pensum, 0);
-      const before = datesBetween(addDays(c.start, -(wd(c.start) + 6) % 7), c.start).slice(0, -1).some(d => isWorkday(w.name, d));
-      const after = datesBetween(c.end, addDays(c.end, 6 - wd(c.end))).slice(1).some(d => isWorkday(w.name, d));
-      const score = load + (before ? 300 : 0) + (after ? 150 : 0);   // ganze Wochen bevorzugt
+      const satNeeded = isWorkday(w.name, addDays(c.start, 7 * (Number(w.len) || 1) - 2));
+      if (!c.sat && !satNeeded) continue;                          // Variante ohne Samstag nur, wenn der Samstag ein Arbeitstag wäre
+      const score = load + (c.sat ? 0 : 100000);                    // mit Samstag klar bevorzugt
       if (!best || score < best.score) best = { ...c, score };
     }
-    if (!best) return reject(w, "Kein passender Platz im Zeitfenster" + (firstReason ? ` (z.B. ${firstReason})` : ""));
-    grant(w, best); result.set(w.id, { status: "zugeteilt", reason: "", aStart: best.start, aEnd: best.end });
+    if (!best) return reject(w, "Keine passende Kalenderwoche im Zeitfenster" + (firstReason ? ` (z.B. ${firstReason})` : ""));
+    grant(w, best); result.set(w.id, { status: "zugeteilt", reason: best.sat ? "" : `ohne Samstag ${fmtShort(addDays(best.end, 1))} zugeteilt (Samstag belegt)`, aStart: best.start, aEnd: best.end });
   };
   let pass = 0;
   const rank = n => order.indexOf(n);
@@ -1065,6 +1086,7 @@ function setUser(name, admin) {
   if (admin) state.bookFor = $("bookForSelect").value || ADMIN_NAME;
   if (!admin && state.tab !== "kalender") setTab("kalender");
   storageSet("ferienplaner_user", name); storageSet("ferienplaner_admin", admin ? "1" : "0");
+  state.mode = "fix"; state.flexLen = 1; $("flexLen").value = 1;
   clearSelection(); renderAll();
 }
 function logout() { setUser("", false); storageSet("ferienplaner_user", ""); }
@@ -1107,14 +1129,14 @@ function currentRange() {
 function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
   const p = PERSON[who];
   const flex = flexLen > 0;
-  const avail = workDays(who, start, end);
-  const days = flex ? flexLen : avail;
+  const weeks = flex ? weekStarts({ start, end, len: 1 }).length : 0;
+  const days = flex ? flexLen * perWeek(who) : workDays(who, start, end);
   const mine = state.wishes.filter(w => w.name === who && w.id !== ignoreId);
   const errs = [], infos = [];
   if (!inYear(start) || !inYear(end)) errs.push(`Nur Daten im Jahr ${JAHR} möglich.`);
   if (flex) {
-    if (avail < flexLen) errs.push(`Zeitfenster zu kurz: nur ${avail} Ferientage drin, ${flexLen} gewünscht.`);
-    else if (avail === flexLen) infos.push("Zeitfenster hat genau so viele Tage – dann besser «Genau diese Tage» wählen.");
+    if (weeks < flexLen) errs.push(`Zeitfenster enthält nur ${plural(weeks, "ganze Kalenderwoche", "ganze Kalenderwochen")} (Mo–Sa), ${flexLen} gewünscht.`);
+    else if (weeks === flexLen) infos.push("Zeitfenster enthält genau so viele Wochen – dann besser «Genau diese Tage» wählen.");
   } else {
     if (days === 0) errs.push("Keine Arbeitstage in dieser Auswahl (nur freie Tage, Sonntage oder Feiertage).");
     const ov = mine.find(w => !isFlex(w) && overlap(w, { start, end })) || mine.find(w => isFlex(w) && effRange(w) && overlap(effRange(w), { start, end }));
@@ -1143,7 +1165,7 @@ function renderActionBar() {
   let r = analyse(a, b, who, state.prio, null, flexLen);
   if (state.prio === "must" && r.mustBlocked) { state.prio = "p1"; r = analyse(a, b, who, state.prio, null, flexLen); }
   const forTxt = state.isAdmin && who !== state.user ? ` für <b>${esc(who)}</b>` : "";
-  const what = state.mode === "flex" ? `${plural(r.days, "Ferientag", "Ferientage")} irgendwo darin` : plural(r.days, "Ferientag", "Ferientage");
+  const what = state.mode === "flex" ? `${plural(state.flexLen, "Kalenderwoche", "Kalenderwochen")} irgendwo darin` : plural(r.days, "Ferientag", "Ferientage");
   $("selTitle").innerHTML = `${esc(fmtRange(a, b))} → <span style="color:#fde68a">${what}</span>${forTxt}`;
   const sub = [...r.infos]; if (state.sel.phase === "end") sub.unshift("Jetzt auf den letzten Tag klicken (oder direkt speichern).");
   $("selSub").textContent = sub.join(" · ");
@@ -1208,7 +1230,7 @@ async function saveEdit() {
   const upd = { ...w, start, end, prio: $("edPrio").value, status, reason: $("edReason").value.trim(), updatedAt: Date.now(), by: state.user };
   if (!isFlex(w)) upd.orig = keepOrig(w, start, end);
   if (isFlex(w)) {
-    upd.len = Math.max(1, Number($("edLen").value) || 1);
+    upd.len = Math.max(1, Math.round(Number($("edLen").value) || 1));
     const as = $("edAFrom").value, ae = $("edATo").value;
     if ((as || ae) && (!isValidIso(as) || !isValidIso(ae) || as > ae)) { toast("Zugeteilter Zeitraum ungültig.", "err"); return; }
     upd.aStart = as || ""; upd.aEnd = ae || "";
@@ -1269,7 +1291,7 @@ function renderAll() {
 }
 function renderBanners() {
   const ph = state.cfg.phase;
-  const txt = ph === "wuensche" ? `📝 <b>Wunschphase offen – bitte bis ${EINGABE_BIS} eintragen.</b> Andere sehen Ihre Wünsche nicht. Wichtig: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
+  const txt = ph === "wuensche" ? `📝 <b>Wunschphase offen:</b> Tragen Sie hier Ihre Ferienwünsche ein. Andere sehen Ihre Wünsche nicht. Bitte beachten: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
     : ph === "geschlossen" ? "🔒 <b>Wunschphase geschlossen:</b> Die Ferien werden jetzt verteilt. Änderungen nur noch über die Teamleitung."
     : "📢 <b>Ferienplan veröffentlicht:</b> Im Kalender sehen Sie die bestätigten Ferien aller.";
   $("phaseText").innerHTML = txt; $("phaseBanner").classList.toggle("on", !!state.user);
@@ -1381,7 +1403,7 @@ function renderGantt() {
           if (conf.has(w.id)) bc.push("conflict");
           if (drag && drag.id === w.id) bc.push("dragging");
           if (!isWorkday(w.name, d) && !r.win) bc.push("nc");
-          const label = (d === r.start || d === days[0]) ? (r.win ? `~${w.len}` : PRIO_SHORT[w.prio]) : "";
+          const label = (d === r.start || d === days[0]) ? (r.win ? `~${w.len}W` : PRIO_SHORT[w.prio]) : "";
           const o = origOf(w);
           if (o && !o.win && (d === r.start || d === days[0])) bc.push("moved");
           const tip = `${w.name} · ${wishLabel(w)} · ${PRIO_LABEL[w.prio]} · ${STATUS_LABEL[w.status]}` + (o && !o.win ? `\nUrsprünglicher Wunsch: ${fmtRange(o.start, o.end)}` : "") +
@@ -1416,7 +1438,7 @@ function renderMyWishes() {
   $("myWishes").innerHTML = mine.map(w => {
     const st = shownStatus(w), dr = displayRange(w);
     return `<li data-wish="${esc(w.id)}" style="cursor:pointer"><span class="prio ${w.prio === "must" ? "must" : ""}" style="${w.prio === "must" ? "" : "background:#e5e7eb"}">${PRIO_SHORT[w.prio]}</span>
-      <div class="body"><div><b>${esc(isFlex(w) ? `${w.len} Tage im ${fmtRange(w.start, w.end)}` : fmtRange(w.start, w.end))}</b></div>
+      <div class="body"><div><b>${esc(isFlex(w) ? `${plural(Number(w.len), "Woche", "Wochen")} im ${fmtRange(w.start, w.end)}` : fmtRange(w.start, w.end))}</b></div>
       <div class="meta">${PRIO_LABEL[w.prio]}${isFlex(w) ? " · 🔀 flexibel" : ""} · ${plural(wishDays(w), "Ferientag", "Ferientage")}${isFlex(w) && !dr.win ? ` · zugeteilt ${esc(fmtRange(dr.start, dr.end))}` : ""}${origOf(w) && !origOf(w).win ? ` · ursprünglich ${esc(fmtRange(origOf(w).start, origOf(w).end))}` : ""}${w.reason && w.status !== "offen" ? `<br>${esc(state.isAdmin ? w.reason : staffReason(w.reason))}` : ""}</div></div>
       <span class="status ${st}">${STATUS_LABEL[st]}</span></li>`;
   }).join("");
@@ -1473,7 +1495,7 @@ function renderStatic() {
 function renderTeam() {
   if (state.tab !== "team") return;
   const box = (i, list, b) => [1, 2, 3, 4, 5, 6].map(x => `<label title="${WT_NAMEN[x]}" style="display:inline-flex;flex-direction:column;align-items:center;font-size:11px;margin-right:2px">${WT_NAMEN[x]}<input type="checkbox" data-i="${i}" data-free="${x}" data-b="${b}" ${list.includes(x) ? "checked" : ""}></label>`).join("");
-  let h = `<tr><th>Name</th><th>Kürzel</th><th>Gruppe</th><th>Pensum %</th><th>Ferientage</th><th>Rolle</th><th>Freie Tage</th><th>Arbeitstage/Woche</th><th></th></tr>`;
+  let h = `<tr><th>Name</th><th>Kürzel</th><th>Gruppe</th><th>Pensum %</th><th>Ferientage</th><th>Rolle</th><th>Freie Tage</th><th title="Diese Wochentage werden nur als halber Ferientag abgezogen">Halber Tag</th><th>Arbeitstage/Woche</th><th></th></tr>`;
   MITARBEITENDE.forEach((p, i) => {
     h += `<tr><td><span class="dot-c" style="background:${p.color}"></span><input data-i="${i}" data-f="name" value="${esc(p.name)}" style="width:110px"></td>
       <td><input data-i="${i}" data-f="kuerzel" value="${esc(p.kuerzel)}" style="width:60px;text-transform:uppercase"></td>
@@ -1484,6 +1506,7 @@ function renderTeam() {
       <td style="white-space:nowrap">${p.freiB ? `<span class="hint">gerade KW:</span> ` : ""}${box(i, p.frei, 0)}
         ${p.freiB ? `<br><span class="hint">ungerade KW:</span> ${box(i, p.freiB, 1)}` : ""}
         <br><label class="hint"><input type="checkbox" data-i="${i}" data-f="wechsel" ${p.freiB ? "checked" : ""}> im Wechsel (gerade/ungerade KW)</label></td>
+      <td style="white-space:nowrap">${box(i, p.halb, 2)}</td>
       <td class="r">${String(perWeek(p.name)).replace(".", ",")}</td>
       <td>${p.name === ADMIN_NAME ? "" : `<button class="x-btn" data-del-person="${i}" title="Person entfernen">×</button>`}</td></tr>`;
   });
@@ -1494,7 +1517,7 @@ async function onTeamChange(e) {
   const el = e.target, i = Number(el.dataset.i); if (Number.isNaN(i)) return;
   const people = peopleForSave(), p = people[i];
   if (el.dataset.free) {
-    const key = el.dataset.b === "1" ? "freiB" : "frei";
+    const key = el.dataset.b === "1" ? "freiB" : el.dataset.b === "2" ? "halb" : "frei";
     const set = new Set(p[key] || []); el.checked ? set.add(Number(el.dataset.free)) : set.delete(Number(el.dataset.free));
     p[key] = [...set].sort();
   } else if (el.dataset.f === "wechsel") {
@@ -1556,13 +1579,13 @@ async function fillDemo() {
     add(pick(ns), pick([5, 6, 12, 13]), "p1");
     if (rng() < 0.6) {                                                            // flexibler Wunsch: 1 Woche in 4 Wochen
       const s = pick(mondays.slice(0, -4));
-      list.push({ id: newId(), name: p.name, type: "flex", start: s, end: addDays(s, 27), len: Math.round(perWeek(p.name)) || 1, aStart: "", aEnd: "",
+      list.push({ id: newId(), name: p.name, type: "flex", start: s, end: addDays(s, 27), len: 1, aStart: "", aEnd: "",
         prio: pick(["p1", "p2"]), status: "offen", reason: "", createdAt: now, updatedAt: now, by: "Testdaten" });
     } else add(pick(mondays), pick([5, 6]), "p2");
   }
   await backend.setWishes(list);
   
-  toast(`🧪 ${list.length} Testwünsche erzeugt. Als Silvan (PIN 1234) anmelden → «Fair verteilen».`, "info", 9000);
+  toast(`🧪 ${list.length} Testwünsche erzeugt. Als Silvan anmelden → «Fair verteilen».`, "info", 9000);
 }
 
 /* ---------------------- Ereignisse ---------------------- */
@@ -1614,10 +1637,10 @@ function bindEvents() {
   $("prioPick").addEventListener("click", e => { const b = e.target.closest("button"); if (b && !b.disabled) { state.prio = b.dataset.prio; renderActionBar(); } });
   $("modePick").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.mode === "flex" && state.mode !== "flex") { state.flexLen = Math.max(1, Math.round(perWeek(targetName()))); $("flexLen").value = state.flexLen; }
+    if (b.dataset.mode === "flex" && state.mode !== "flex") { state.flexLen = 1; $("flexLen").value = 1; }
     state.mode = b.dataset.mode; renderActionBar();
   });
-  $("flexLen").addEventListener("input", () => { state.flexLen = Math.max(1, Math.min(60, Number($("flexLen").value) || 1)); renderActionBar(); });
+  $("flexLen").addEventListener("input", () => { state.flexLen = Math.max(1, Math.min(10, Math.round(Number($("flexLen").value) || 1))); renderActionBar(); });
   $("saveWishBtn").addEventListener("click", saveWish);
   $("cancelSelBtn").addEventListener("click", clearSelection);
 
