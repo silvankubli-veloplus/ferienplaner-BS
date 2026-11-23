@@ -361,8 +361,8 @@
       <div class="card admin-only">
         <h2>Regeln</h2>
         <div class="field">
-          <label for="maxMustInput">Max. ⭐ Must-Wünsche pro Person</label>
-          <input type="number" id="maxMustInput" min="0" max="10" style="width:90px">
+          <label for="maxMustInput">Max. ⭐ Must pro Person (Wochen, total)</label>
+          <input type="number" id="maxMustInput" min="0" max="10" step="0.5" style="width:90px">
         </div>
 
         <div class="field">
@@ -575,7 +575,7 @@ const STATUS_LABEL = { offen: "Wunsch", zugeteilt: "vorläufig zugeteilt", besta
 const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const WT_KURZ = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const NS_MONATE = [0, 1, 2, 9, 10, 11];  // Jan–März, Okt–Dez
-const DEFAULT_CONFIG = { people: START_TEAM, phase: "wuensche", maxMust: 1, pairs: [], schulferien: SCHULFERIEN_VORSCHLAG, vorrang: [], lastRun: null, ...REGELN_START };
+const DEFAULT_CONFIG = { people: START_TEAM, phase: "wuensche", mustWochen: 2, pairs: [], schulferien: SCHULFERIEN_VORSCHLAG, vorrang: [], lastRun: null, ...REGELN_START };
 
 const $ = id => document.getElementById(id);
 
@@ -704,6 +704,8 @@ function displayRange(w) {
   if (isFlex(w) && (st === "zugeteilt" || st === "bestaetigt") && w.aStart && w.aEnd) return { start: w.aStart, end: w.aEnd, win: false };
   return { start: w.start, end: w.end, win: isFlex(w) };
 }
+/* Must-Grenze pro Person in Ferientagen: Wochen × Arbeitstage pro Woche */
+const mustLimit = name => Number(state.cfg.mustWochen ?? 2) * perWeek(name);
 const wishLabel = w => isFlex(w) ? `${plural(Number(w.len), "Woche", "Wochen")} flexibel im ${fmtRange(w.start, w.end)}` : fmtRange(w.start, w.end);
 const overlapsSchool = r => datesBetween(r.start, r.end).some(d => schoolName(d));
 
@@ -1147,11 +1149,18 @@ function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
     if (sat) errs.push(sat);
   }
   if (days > p.tage) errs.push(`Mehr Tage als Guthaben (${days} > ${p.tage}).`);
-  const mustCount = mine.filter(w => w.prio === "must").length;
-  const mustBlocked = mustCount >= Number(state.cfg.maxMust ?? 1);
-  if (prio === "must" && mustBlocked) errs.push(`Max. ${state.cfg.maxMust} ⭐ Must-Wunsch pro Person – schon vergeben.`);
+  const mustMax = mustLimit(who), mustUsed = mine.filter(w => w.prio === "must").reduce((s, w) => s + wishDays(w), 0);
+  const mustBlocked = mustUsed >= mustMax;
+  const f2 = n => String(Math.round(n * 10) / 10).replace(".", ",");
+  if (prio === "must" && mustUsed + days > mustMax)
+    errs.push(`⭐ Must-Wunsch zu gross: insgesamt max. ${f2(Number(state.cfg.mustWochen ?? 2))} Wochen (${f2(mustMax)} Tage), mit diesem ${f2(mustUsed + days)} Tage. Den Rest als Prio 1 eintragen.`);
   const wished = mine.reduce((s, w) => s + wishDays(w), 0);
-  infos.push(`Total gewünscht inkl. diesem: ${wished + days} von ${p.tage} Tagen`);
+  const core = mine.filter(w => w.prio !== "p2").reduce((s, w) => s + wishDays(w), 0);
+  const fmtN = n => String(Math.round(n * 10) / 10).replace(".", ",");
+  if (prio !== "p2" && core + days > p.tage)
+    errs.push(`Must + Prio 1 zusammen dürfen das Guthaben nicht überschreiten (${fmtN(core + days)} > ${fmtN(p.tage)} Tage). Diesen Wunsch als Prio 2 (Reserve) eintragen.`);
+  infos.push(`Must + Prio 1: ${fmtN(core + (prio !== "p2" ? days : 0))} von ${fmtN(p.tage)} Tagen · total inkl. Reserve: ${fmtN(wished + days)}`);
+  if (prio === "p2" && wished + days > p.tage) infos.push("Hinweis: Prio-2-Wünsche über dem Guthaben gelten als Reserve und werden nur zugeteilt, wenn ein anderer Wunsch nicht klappt");
   const hits = (state.cfg.limits || []).filter(l => l.start <= end && start <= l.end && (l.gruppe === "Alle" || l.gruppe === p.gruppe));
   if (hits.length) infos.push("Eingeschränkter Zeitraum: " + [...new Set(hits.map(l => `${l.label} (${limitTxt(l)})`))].join(", "));
   return { days, errs, infos, mustBlocked };
@@ -1237,7 +1246,7 @@ async function saveEdit() {
     if ((status === "zugeteilt" || status === "bestaetigt") && !upd.aStart) { toast("Für «zugeteilt/bestätigt» bitte «Zugeteilt von/bis» ausfüllen.", "err", 7000); return; }
   }
   const r = analyse(start, end, w.name, upd.prio, w.id, isFlex(w) ? upd.len : 0);
-  const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Samstage") && !e.includes("Sperrtag"));
+  const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Samstage") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1"));
   if (hard.length) { toast("❌ " + esc(hard.join(" ")), "err", 8000); return; }
   try { await backend.setWish(upd); toast("💾 Gespeichert."); closeEdit(); }
   catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
@@ -1265,7 +1274,7 @@ async function moveWish(id, delta) {
     upd = { ...w, start: addDays(w.start, delta), end: addDays(w.end, delta) };
     if (!isFlex(w)) upd.orig = keepOrig(w, upd.start, upd.end);
     const r = analyse(upd.start, upd.end, w.name, w.prio, w.id, isFlex(w) ? Number(w.len) : 0);
-    const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Keine Arbeitstage") && !e.includes("Samstage") && !e.includes("Sperrtag"));
+    const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Keine Arbeitstage") && !e.includes("Samstage") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1"));
     if (hard.length) { toast("❌ Verschieben nicht möglich: " + esc(hard.join(" ")), "err", 7000); renderGantt(); return; }
   }
   try {
@@ -1296,7 +1305,7 @@ function renderBanners() {
     : "📢 <b>Ferienplan veröffentlicht:</b> Im Kalender sehen Sie die bestätigten Ferien aller.";
   $("phaseText").innerHTML = txt; $("phaseBanner").classList.toggle("on", !!state.user);
   $("phaseSelect").value = ph;
-  $("maxMustInput").value = state.cfg.maxMust ?? 1;
+  $("maxMustInput").value = state.cfg.mustWochen ?? 2;
   $("nsWeeksInput").value = state.cfg.nebensaisonWochen ?? 2;
   const sr = state.cfg.samstagRegel || {};
   $("satRuleOn").checked = !!sr.aktiv; $("satRuleFrom").value = sr.start || ""; $("satRuleTo").value = sr.end || "";
@@ -1312,10 +1321,15 @@ function renderBalance() {
   const p = PERSON[who], mine = state.wishes.filter(w => w.name === who);
   const wished = mine.reduce((s, w) => s + wishDays(w), 0);
   const conf = mine.filter(w => w.status === "bestaetigt").reduce((s, w) => s + grantedDays(w), 0);
-  const must = mine.filter(w => w.prio === "must").length;
+  const must = mine.filter(w => w.prio === "must").reduce((s, w) => s + wishDays(w), 0);
   const ns = nsDays(who, false), nsReq = nsRequired(who);
   $("balanceText").textContent = `${who}: Guthaben ${p.tage} Tage (${p.pensum} %)`;
-  $("balanceSub").innerHTML = esc(`${plural(mine.length, "Wunsch", "Wünsche")} mit total ${wished} Tagen · ⭐ Must: ${must} von ${state.cfg.maxMust ?? 1}`) +
+  const core = mine.filter(w => w.prio !== "p2").reduce((s, w) => s + wishDays(w), 0);
+  const f1 = n => String(Math.round(n * 10) / 10).replace(".", ",");
+  const over = wished > p.tage;
+  $("balanceSub").innerHTML = esc(`${plural(mine.length, "Wunsch", "Wünsche")} · Must + Prio 1: ${f1(core)} von ${f1(p.tage)} Tagen · `) +
+    `<span style="${over ? "color:#b45309;font-weight:700" : ""}">total inkl. Prio 2: ${f1(wished)} Tage${over ? " (über dem Guthaben – Prio 2 gilt als Reserve)" : ""}</span>` +
+    esc(` · ⭐ Must: ${f1(must)} von max. ${f1(mustLimit(who))} Tagen`) +
     ` · Nebensaison (Jan–März, Okt–Dez): <b style="color:${ns >= nsReq ? "#15803d" : "#b45309"}">${ns} von min. ${nsReq} Tagen</b>` +
     (state.isAdmin || state.cfg.phase === "veroeffentlicht" ? esc(` · bestätigt: ${conf} Tage`) : "") +
     ` · Abgezogen werden nur Arbeitstage (frei: ${esc(freiTxt(p))})`;
@@ -1655,7 +1669,7 @@ function bindEvents() {
   $("editModal").addEventListener("click", e => { if (e.target === $("editModal")) closeEdit(); });
 
   $("phaseSelect").addEventListener("change", () => saveConfig({ phase: $("phaseSelect").value }));
-  $("maxMustInput").addEventListener("change", () => saveConfig({ maxMust: Math.max(0, Number($("maxMustInput").value) || 0) }));
+  $("maxMustInput").addEventListener("change", () => saveConfig({ mustWochen: Math.max(0, Math.round((Number($("maxMustInput").value) || 0) * 2) / 2) }));
   $("nsWeeksInput").addEventListener("change", () => saveConfig({ nebensaisonWochen: Math.max(0, Number($("nsWeeksInput").value) || 0) }));
   const saveSat = () => {
     const s = $("satRuleFrom").value, e = $("satRuleTo").value;
