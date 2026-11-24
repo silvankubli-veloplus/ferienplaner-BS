@@ -193,6 +193,9 @@
   .prio-pick input { width: 64px; padding: 8px; border-radius: 8px; border: 2px solid #4b5563; background: #1f2937; color: #fff; }
   .chip.flexwin { background: transparent !important; border-style: dashed; color: #111827; opacity: .85; }
   table.gantt td.c .blk.flexwin { background: transparent !important; border-style: dashed !important; border-width: 2px; color: #111827; opacity: .7; }
+  .day.amp-frei { box-shadow: inset 0 -5px 0 #22c55e; }
+  .day.amp-knapp { box-shadow: inset 0 -5px 0 #f59e0b; }
+  .day.amp-voll { box-shadow: inset 0 -5px 0 #dc2626; background-color: #fef2f2; }
   .day.sperr { background: repeating-linear-gradient(-45deg, #f3f4f6, #f3f4f6 8px, #e5e7eb 8px, #e5e7eb 16px); border-color: #9ca3af; }
   .day .sperr-name { font-size: 11px; color: #374151; font-weight: 800; }
   table.gantt th.sperr { background: #4b5563; color: #fff; }
@@ -341,15 +344,17 @@
           <select id="phaseSelect">
             <option value="wuensche">1 · Wunschphase offen (Team kann eintragen)</option>
             <option value="geschlossen">2 · Geschlossen (ich verteile)</option>
+            <option value="runde2">2b · Runde 2 offen (nur Personen mit Ablehnungen)</option>
             <option value="veroeffentlicht">3 · Veröffentlicht (Team sieht bestätigte Ferien)</option>
           </select>
         </div>
         <div class="btn-row">
           <button class="btn" id="distributeBtn">⚖️ Fair verteilen</button>
+          <button class="btn secondary" id="runde2Btn">🔁 Runde 2 starten</button>
           <button class="btn green" id="confirmAllBtn">✔ Zugeteilte bestätigen</button>
           <button class="btn secondary" id="exportBtn">⬇ CSV-Export</button>
         </div>
-        <p class="hint" style="margin-top:10px">«Fair verteilen» verteilt alle <b>nicht bestätigten</b> Wünsche neu: zuerst alle ⭐ Must, dann Prio 1, dann Prio 2. Reihenfolge der Personen per Los, jede Runde umgekehrt (Schlangenprinzip). Flexible Wünsche bekommen den Platz im Zeitfenster, wo am wenigsten Leute weg sind. Bestätigte Ferien bleiben fix.</p>
+        <p class="hint" style="margin-top:10px">«Fair verteilen» verteilt alle <b>nicht bestätigten</b> Wünsche neu: zuerst alle ⭐ Must, dann Prio 1, dann Prio 2. Reihenfolge der Personen per Los, jede Runde umgekehrt (Schlangenprinzip). Flexible Wünsche bekommen den Platz im Zeitfenster, wo am wenigsten Leute weg sind. Bestätigte Ferien bleiben fix.<br><b>Runde 2:</b> Nach Runde 1 (und deinen Verschiebungen) «Runde 2 starten». Dann bleibt alles aus Runde 1 fix; nur Personen mit Ablehnungen tragen neu ein und sehen eine Ampel. «Fair verteilen» verteilt danach nur die Wünsche aus Runde 2 – wer am meisten verloren hat, zuerst.</p>
         <div id="lastRun"></div>
       </div>
 
@@ -691,6 +696,11 @@ const staffReason = r => String(r || "").replace(/\s*\((?:[^()]*\([^()]*\))*[^()
 /* Wunsch-Typen: fix (genau start–end) oder flex (len Tage irgendwo in start–end, zugeteilt aStart–aEnd) */
 const isFlex = w => w.type === "flex";
 const isGranted = w => w.status === "zugeteilt" || w.status === "bestaetigt";
+const isR2 = w => w.runde === 2;
+const inRunde2 = () => Number(state.cfg.runde) === 2;
+/* In Runde 1 abgelehnte Tage einer Person («verloren») */
+const lostDays = name => state.wishes.filter(w => w.name === name && !isR2(w) && w.status === "abgelehnt").reduce((s, w) => s + wishDays(w), 0);
+const hasLost = name => state.wishes.some(w => w.name === name && !isR2(w) && w.status === "abgelehnt");
 function effRange(w) {
   if (!isFlex(w)) return { start: w.start, end: w.end };
   return (w.aStart && w.aEnd) ? { start: w.aStart, end: w.aEnd } : null;
@@ -908,13 +918,17 @@ function flexCandidates(w) {
 
 function distribute(seed) {
   const rng = mulberry32(seed);
-  const fixed = state.wishes.filter(w => w.status === "bestaetigt");
+  const r2 = inRunde2();
+  // Runde 2: alles aus Runde 1, was zugeteilt/bestätigt ist, bleibt fix (inkl. manueller Verschiebungen)
+  const fixed = state.wishes.filter(w => w.status === "bestaetigt" || (r2 && !isR2(w) && isGranted(w)));
   // bei Neuverteilung den ursprünglich gewünschten Zeitraum wiederherstellen
-  const todo = state.wishes.filter(w => w.status !== "bestaetigt" && inYear(w.start)).map(w => (!isFlex(w) && w.orig && w.orig.start) ? { ...w, start: w.orig.start, end: w.orig.end } : w);
+  const todo = state.wishes.filter(w => w.status !== "bestaetigt" && inYear(w.start) && (!r2 || isR2(w))).map(w => (!isFlex(w) && w.orig && w.orig.start) ? { ...w, start: w.orig.start, end: w.orig.end } : w);
   const absent = buildAbsentMap(fixed);
   const used = {}, own = {};
   for (const w of fixed) { used[w.name] = (used[w.name] || 0) + grantedDays(w); (own[w.name] ||= []).push(effRange(w)); }
-  const order = shuffle([...new Set(todo.map(w => w.name))].sort(), rng);
+  let order = shuffle([...new Set(todo.map(w => w.name))].sort(), rng);
+  // Runde 2: wer in Runde 1 am meisten Tage verloren hat, kommt zuerst (Gleichstand: Los)
+  if (r2) order = order.map((n, i) => ({ n, i, l: lostDays(n) })).sort((a, b) => b.l - a.l || a.i - b.i).map(x => x.n);
   const result = new Map();
   const grant = (w, r) => {
     for (const d of datesBetween(r.start, r.end)) {
@@ -971,7 +985,7 @@ function distribute(seed) {
     // fixe vor flexiblen Wünschen derselben Person, dann nach Datum
     const queues = new Map(order.map(n => [n, rest.filter(w => w.name === n).sort((a, b) => (isFlex(a) - isFlex(b)) || a.start.localeCompare(b.start))]));
     while ([...queues.values()].some(q => q.length)) {
-      const ord = pass % 2 === 0 ? order : [...order].reverse();
+      const ord = (r2 || pass % 2 === 0) ? order : [...order].reverse();
       for (const n of ord) { const q = queues.get(n); if (q.length) tryGrant(q.shift()); }
       pass++;
     }
@@ -980,10 +994,12 @@ function distribute(seed) {
 }
 
 async function runDistribution() {
-  const open = state.wishes.filter(w => w.status !== "bestaetigt");
-  if (!open.length) { toast("Es gibt keine offenen Wünsche zum Verteilen.", "info"); return; }
+  const r2 = inRunde2();
+  const open = state.wishes.filter(w => w.status !== "bestaetigt" && (!r2 || isR2(w)));
+  if (!open.length) { toast(r2 ? "Es gibt noch keine Wünsche aus Runde 2." : "Es gibt keine offenen Wünsche zum Verteilen.", "info"); return; }
   const touched = open.filter(w => w.status !== "offen").length;
-  if (!confirm(`${open.length} nicht bestätigte Wünsche werden neu verteilt.` + (touched ? `\n\nAchtung: ${touched} davon sind schon zugeteilt/abgelehnt – manuelle Änderungen daran werden überschrieben.` : "") + "\n\nFortfahren?")) return;
+  const intro = r2 ? `Runde 2: ${open.length} Wünsche aus Runde 2 werden verteilt. Alles aus Runde 1 bleibt fix.` : `${open.length} nicht bestätigte Wünsche werden neu verteilt.`;
+  if (!confirm(intro + (touched ? `\n\nAchtung: ${touched} davon sind schon zugeteilt/abgelehnt – manuelle Änderungen daran werden überschrieben.` : "") + "\n\nFortfahren?")) return;
   const seed = Math.floor(Math.random() * 2 ** 31);
   const { result, order } = distribute(seed);
   const now = Date.now();
@@ -991,12 +1007,21 @@ async function runDistribution() {
   try {
     await backend.setWishes(updates);
     const ok = updates.filter(w => w.status === "zugeteilt").length;
-    await saveConfig({ lastRun: { at: now, seed, order, ok, rejected: updates.length - ok } });
+    await saveConfig({ lastRun: { at: now, seed, order, ok, rejected: updates.length - ok, runde: r2 ? 2 : 1 } });
     toast(`⚖️ Verteilt: <b>${ok}</b> zugeteilt, <b>${updates.length - ok}</b> abgelehnt. Jetzt in der Übersicht prüfen und verschieben.`, "ok", 8000);
     setTab("uebersicht");
   } catch (err) { toast("❌ Verteilung fehlgeschlagen: " + esc(friendlyError(err)), "err", 10000); }
 }
 
+async function startRunde2() {
+  if (inRunde2()) { toast("Runde 2 läuft bereits.", "info"); return; }
+  if (!state.wishes.some(w => isGranted(w))) { toast("Bitte zuerst Runde 1 verteilen.", "err"); return; }
+  const lost = MITARBEITENDE.filter(p => hasLost(p.name));
+  if (!lost.length) { toast("Niemand hat abgelehnte Wünsche – Runde 2 ist nicht nötig.", "info"); return; }
+  if (!confirm(`Runde 2 starten?\n\nAlles, was in Runde 1 zugeteilt ist (inkl. deiner Verschiebungen), bleibt fix.\n${lost.length} Personen mit abgelehnten Wünschen können neue Wünsche eintragen und sehen im Kalender, wo noch Platz ist:\n${lost.map(p => `${p.name} (${String(lostDays(p.name)).replace(".", ",")} Tage verloren)`).join(", ")}`)) return;
+  await saveConfig({ runde: 2, phase: "runde2" });
+  toast("🔁 Runde 2 gestartet.", "info");
+}
 async function confirmAll() {
   const list = state.wishes.filter(w => w.status === "zugeteilt");
   if (!list.length) { toast("Keine vorläufig zugeteilten Wünsche vorhanden.", "info"); return; }
@@ -1099,11 +1124,11 @@ function requireUser() {
   const s = $("userSelect"); s.classList.remove("attention"); void s.offsetWidth; s.classList.add("attention"); s.focus();
   toast("Bitte zuerst oben bei «Ich bin» Ihren Namen wählen.", "err"); return false;
 }
-const canEdit = () => state.isAdmin || state.cfg.phase === "wuensche";
+const canEdit = () => state.isAdmin || state.cfg.phase === "wuensche" || (state.cfg.phase === "runde2" && hasLost(state.user));
 function onDayClick(date) {
   if (!requireUser()) return;
   if (!inYear(date)) { toast(`Wünsche können nur für ${JAHR} eingetragen werden.`, "err"); return; }
-  if (!canEdit()) { toast("Die Wunschphase ist geschlossen.", "err"); return; }
+  if (!canEdit()) { toast(state.cfg.phase === "runde2" ? "Runde 2 ist nur für Personen mit abgelehnten Wünschen." : "Die Wunschphase ist geschlossen.", "err"); return; }
   const s = state.sel;
   if (s.phase !== "end") { s.start = date; s.end = date; s.phase = "end"; }
   else { if (date < s.start) { s.end = s.start; s.start = date; } else s.end = date; s.phase = "done"; }
@@ -1133,7 +1158,7 @@ function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
   const flex = flexLen > 0;
   const weeks = flex ? weekStarts({ start, end, len: 1 }).length : 0;
   const days = flex ? flexLen * perWeek(who) : workDays(who, start, end);
-  const mine = state.wishes.filter(w => w.name === who && w.id !== ignoreId);
+  const mine = state.wishes.filter(w => w.name === who && w.id !== ignoreId && w.status !== "abgelehnt");
   const errs = [], infos = [];
   if (!inYear(start) || !inYear(end)) errs.push(`Nur Daten im Jahr ${JAHR} möglich.`);
   if (flex) {
@@ -1196,7 +1221,7 @@ async function saveWish() {
   if (r.errs.length) return;
   state.busy = true; renderActionBar();
   const now = Date.now();
-  const w = { id: newId(), name: who, type: flex ? "flex" : "fix", start, end, prio: state.prio, status: "offen", reason: "", createdAt: now, updatedAt: now, by: state.user };
+  const w = { id: newId(), name: who, type: flex ? "flex" : "fix", start, end, prio: state.prio, status: "offen", reason: "", runde: inRunde2() ? 2 : 1, createdAt: now, updatedAt: now, by: state.user };
   if (flex) { w.len = state.flexLen; w.aStart = ""; w.aEnd = ""; }
   try {
     await backend.setWish(w);
@@ -1223,7 +1248,7 @@ function openEdit(id) {
   $("editFields").classList.toggle("hidden", !state.isAdmin);
   $("edSave").classList.toggle("hidden", !state.isAdmin);
   $("edFlexBox").classList.toggle("hidden", !isFlex(w));
-  const canDel = state.isAdmin || (own && state.cfg.phase === "wuensche" && w.status === "offen");
+  const canDel = state.isAdmin || (own && w.status === "offen" && (state.cfg.phase === "wuensche" || (state.cfg.phase === "runde2" && isR2(w))));
   $("edDelete").classList.toggle("hidden", !canDel);
   if (state.isAdmin) {
     $("edFrom").value = w.start; $("edTo").value = w.end; $("edPrio").value = w.prio; $("edStatus").value = w.status; $("edReason").value = w.reason || "";
@@ -1298,10 +1323,24 @@ function renderAll() {
   if (state.isAdmin) { renderAdminTable(); renderRules(); renderLastRun(); renderTeam(); }
   renderActionBar();
 }
+const restDays = name => (PERSON[name]?.tage || 0) - state.wishes.filter(w => w.name === name && isGranted(w)).reduce((s, w) => s + grantedDays(w), 0);
+/* Ampel für Runde 2: Wäre die Person an diesem Tag abwesend, verstösst das gegen eine Regel? */
+function ampel(name, d, absentMap) {
+  if (!isWorkday(name, d) || !inYear(d)) return null;
+  const probe = { id: "__probe__", name };
+  const v = findViolation(probe, { start: d, end: d }, absentMap);
+  if (v) return { cls: "voll", tip: "nicht möglich" };
+  const g = groupOf(name);
+  const others = (absentMap.get(d) || []).filter(x => x.group === g && x.name !== name);
+  return others.length ? { cls: "knapp", tip: "knapp – es sind schon Leute weg" } : { cls: "frei", tip: "frei" };
+}
 function renderBanners() {
   const ph = state.cfg.phase;
   const txt = ph === "wuensche" ? `📝 <b>Wunschphase offen:</b> Tragen Sie hier Ihre Ferienwünsche ein. Andere sehen Ihre Wünsche nicht. Bitte beachten: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
     : ph === "geschlossen" ? "🔒 <b>Wunschphase geschlossen:</b> Die Ferien werden jetzt verteilt. Änderungen nur noch über die Teamleitung."
+    : ph === "runde2" ? (state.isAdmin ? "🔁 <b>Runde 2 offen:</b> Personen mit abgelehnten Wünschen können neue Wünsche eintragen. Die Ampel im Kalender zeigt, wo für die gewählte Person noch Platz ist."
+        : hasLost(state.user) ? `🔁 <b>Runde 2:</b> Einige Ihrer Wünsche konnten nicht zugeteilt werden. Tragen Sie neue Wünsche ein. Die Ampel im Kalender zeigt, wo noch Platz ist: <b style="color:#15803d">grün</b> = frei, <b style="color:#b45309">orange</b> = knapp, <b style="color:#dc2626">rot</b> = nicht möglich. Restguthaben: <b>${String(restDays(state.user)).replace(".", ",")} Tage</b>.`
+        : "🔁 <b>Runde 2:</b> Ihre Wünsche aus Runde 1 sind alle zugeteilt. Runde 2 betrifft nur Personen mit abgelehnten Wünschen.")
     : "📢 <b>Ferienplan veröffentlicht:</b> Im Kalender sehen Sie die bestätigten Ferien aller.";
   $("phaseText").innerHTML = txt; $("phaseBanner").classList.toggle("on", !!state.user);
   $("phaseSelect").value = ph;
@@ -1318,7 +1357,7 @@ function renderBalance() {
     $("balanceSub").textContent = "Danach mit Ihrem Kürzel anmelden und Ferienwünsche eintragen.";
     $("balanceBar").style.width = "0"; banner.style.borderLeftColor = "#9ca3af"; return;
   }
-  const p = PERSON[who], mine = state.wishes.filter(w => w.name === who);
+  const p = PERSON[who], mine = state.wishes.filter(w => w.name === who && w.status !== "abgelehnt");
   const wished = mine.reduce((s, w) => s + wishDays(w), 0);
   const conf = mine.filter(w => w.status === "bestaetigt").reduce((s, w) => s + grantedDays(w), 0);
   const must = mine.filter(w => w.prio === "must").reduce((s, w) => s + wishDays(w), 0);
@@ -1344,6 +1383,8 @@ function renderCalendar() {
   let cur = toIso(new Date(year, month, 1 - offset));
   const range = currentRange();
   const vis = visibleWishes().map(w => ({ w, r: displayRange(w) }));
+  const ampelFor = state.cfg.phase === "runde2" && (state.isAdmin || hasLost(state.user)) ? targetName() : null;
+  const ampelMap = ampelFor ? buildAbsentMap(state.wishes.filter(w => isGranted(w) && w.name !== ampelFor)) : null;
   const conf = state.isAdmin ? liveConflicts().res : new Map();
   let html = "";
   for (let i = 0; i < weeks * 7; i++) {
@@ -1355,6 +1396,8 @@ function renderCalendar() {
     if (hol) cls.push("holiday");
     if (sch) cls.push("school");
     const sp = sperrName(cur); if (sp) cls.push("sperr");
+    const amp = ampelFor ? ampel(ampelFor, cur, ampelMap) : null;
+    if (amp) cls.push("amp-" + amp.cls);
     if (range && cur >= range[0] && cur <= range[1]) { cls.push("in-range"); if (cur === range[0] || cur === range[1]) cls.push("range-edge"); }
     const list = vis.filter(x => cur >= x.r.start && cur <= x.r.end)
       .sort((a, b) => a.r.win - b.r.win || PRIO_ORDER.indexOf(a.w.prio) - PRIO_ORDER.indexOf(b.w.prio) || NAMES.indexOf(a.w.name) - NAMES.indexOf(b.w.name));
@@ -1367,7 +1410,7 @@ function renderCalendar() {
         ${showPrio ? `<span class="prio ${w.prio === "must" ? "must" : ""}">${PRIO_SHORT[w.prio]}</span>` : ""}<span class="cn">${r.win ? "~" : ""}${esc(w.name)}</span></div>`;
     }).join("");
     const schStart = sch && (d.getDate() === 1 || schoolName(addDays(cur, -1)) !== sch);
-    html += `<div class="${cls.join(" ")}" data-date="${cur}"><span class="num">${d.getDate()}</span>
+    html += `<div class="${cls.join(" ")}" data-date="${cur}"${amp ? ` title="Runde 2: ${amp.tip}"` : ""}><span class="num">${d.getDate()}</span>
       ${hol ? `<span class="hol-name">${esc(hol)}</span>` : ""}${sp ? `<span class="sperr-name">⛔ ${esc(sp)}</span>` : ""}${schStart ? `<span class="school-name">${esc(sch)}</span>` : ""}${chips}</div>`;
     cur = addDays(cur, 1);
   }
@@ -1484,10 +1527,10 @@ function renderRules() {
 function renderLastRun() {
   const r = state.cfg.lastRun;
   if (!r) { $("lastRun").innerHTML = ""; return; }
-  const rej = state.wishes.filter(w => w.status === "abgelehnt").sort((a, b) => a.name.localeCompare(b.name));
+  const rej = state.wishes.filter(w => w.status === "abgelehnt" && (r.runde === 2 ? isR2(w) : !isR2(w))).sort((a, b) => a.name.localeCompare(b.name));
   const at = new Date(r.at).toLocaleString("de-CH", { timeZone: "Europe/Zurich" });
   $("lastRun").innerHTML = `<h3>Letzte Verteilung (${esc(at)})</h3>
-    <div class="hint">Losreihenfolge Runde 1: ${r.order.map((n, i) => `${i + 1}. ${esc(n)}`).join(", ")} (Seed ${r.seed})</div>
+    <div class="hint">${r.runde === 2 ? "Reihenfolge Runde 2 (meiste verlorene Tage zuerst)" : "Losreihenfolge Runde 1"}: ${r.order.map((n, i) => `${i + 1}. ${esc(n)}`).join(", ")} (Seed ${r.seed})</div>
     ${rej.length ? `<h3>Abgelehnt (${rej.length})</h3><ul class="log">${rej.map(w => `<li><b>${esc(w.name)}</b> ${esc(wishLabel(w))} (${PRIO_LABEL[w.prio]}): ${esc(w.reason || "–")}</li>`).join("")}</ul>` : ""}`;
 }
 function renderStatic() {
@@ -1678,6 +1721,7 @@ function bindEvents() {
   };
   ["satRuleOn", "satRuleFrom", "satRuleTo"].forEach(id => $(id).addEventListener("change", saveSat));
   $("distributeBtn").addEventListener("click", runDistribution);
+  $("runde2Btn").addEventListener("click", startRunde2);
   $("confirmAllBtn").addEventListener("click", confirmAll);
   $("exportBtn").addEventListener("click", exportCsv);
 
