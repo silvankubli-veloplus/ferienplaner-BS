@@ -67,7 +67,7 @@
   .nav-btn:hover { background: #f3f4f6; }
   .hint { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
 
-  .cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .cal-head, .cal-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
   .cal-head div { text-align: center; font-weight: 700; font-size: 13px; color: var(--muted); padding: 4px 0; }
   .day { min-height: 110px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px;
     display: flex; flex-direction: column; gap: 3px; cursor: pointer; position: relative; user-select: none; }
@@ -193,6 +193,9 @@
   .prio-pick input { width: 64px; padding: 8px; border-radius: 8px; border: 2px solid #4b5563; background: #1f2937; color: #fff; }
   .chip.flexwin { background: transparent !important; border-style: dashed; color: #111827; opacity: .85; }
   table.gantt td.c .blk.flexwin { background: transparent !important; border-style: dashed !important; border-width: 2px; color: #111827; opacity: .7; }
+  .day.freetag { background: repeating-linear-gradient(45deg, #ede9fe, #ede9fe 6px, #f5f3ff 6px, #f5f3ff 12px); border-color: #c4b5fd; }
+  .day .free-name { font-size: 11px; font-weight: 700; color: #6d28d9; }
+  table.gantt td.c.fr { background: repeating-linear-gradient(45deg, #ede9fe, #ede9fe 4px, #f5f3ff 4px, #f5f3ff 8px); }
   .day.amp-frei { box-shadow: inset 0 -5px 0 #22c55e; }
   .day.amp-knapp { box-shadow: inset 0 -5px 0 #f59e0b; }
   .day.amp-voll { box-shadow: inset 0 -5px 0 #dc2626; background-color: #fef2f2; }
@@ -1232,6 +1235,11 @@ async function saveWish() {
 }
 
 /* ---------------------- Bearbeiten ---------------------- */
+/* Darf die angemeldete Person diesen eigenen Wunsch noch ändern/löschen? */
+function staffCanChange(w) {
+  return w.name === state.user && w.status === "offen" &&
+    (state.cfg.phase === "wuensche" || (state.cfg.phase === "runde2" && isR2(w)));
+}
 function openEdit(id) {
   const w = state.wishes.find(x => x.id === id); if (!w) return;
   state.editId = id;
@@ -1245,12 +1253,18 @@ function openEdit(id) {
     (state.isAdmin && w.reason ? `<br>Bemerkung: ${esc(w.reason)}` : "") +
     (!state.isAdmin && w.reason ? `<br>Bemerkung: ${esc(staffReason(w.reason))}` : "") +
     (state.isAdmin && conf ? `<br><b style="color:#dc2626">⚠️ ${esc(conf)}</b>` : "");
-  $("editFields").classList.toggle("hidden", !state.isAdmin);
-  $("edSave").classList.toggle("hidden", !state.isAdmin);
+  const staffEdit = !state.isAdmin && staffCanChange(w);
+  const canChange = state.isAdmin || staffEdit;
+  $("editFields").classList.toggle("hidden", !canChange);
+  $("edSave").classList.toggle("hidden", !canChange);
   $("edFlexBox").classList.toggle("hidden", !isFlex(w));
-  const canDel = state.isAdmin || (own && w.status === "offen" && (state.cfg.phase === "wuensche" || (state.cfg.phase === "runde2" && isR2(w))));
-  $("edDelete").classList.toggle("hidden", !canDel);
-  if (state.isAdmin) {
+  // Mitarbeitende: nur Daten, Priorität und Anzahl Wochen – kein Status, keine Bemerkung, keine Zuteilung
+  $("edStatus").closest(".field").classList.toggle("hidden", !state.isAdmin);
+  $("edReason").closest(".field").classList.toggle("hidden", !state.isAdmin);
+  $("edAFrom").closest(".row2").classList.toggle("hidden", !state.isAdmin);
+  $("edDelete").classList.toggle("hidden", !(state.isAdmin || staffEdit));
+  void own;
+  if (canChange) {
     $("edFrom").value = w.start; $("edTo").value = w.end; $("edPrio").value = w.prio; $("edStatus").value = w.status; $("edReason").value = w.reason || "";
     $("edLen").value = w.len || ""; $("edAFrom").value = w.aStart || ""; $("edATo").value = w.aEnd || "";
   }
@@ -1259,19 +1273,22 @@ function openEdit(id) {
 const closeEdit = () => { $("editModal").classList.remove("on"); state.editId = null; };
 async function saveEdit() {
   const w = state.wishes.find(x => x.id === state.editId); if (!w) return;
-  const start = $("edFrom").value, end = $("edTo").value, status = $("edStatus").value;
+  const admin = state.isAdmin;
+  if (!admin && !staffCanChange(w)) { toast("Dieser Wunsch kann nicht mehr geändert werden.", "err"); return; }
+  const start = $("edFrom").value, end = $("edTo").value, status = admin ? $("edStatus").value : "offen";
   if (!isValidIso(start) || !isValidIso(end) || start > end) { toast("Bitte gültige Daten eingeben (Von ≤ Bis).", "err"); return; }
-  const upd = { ...w, start, end, prio: $("edPrio").value, status, reason: $("edReason").value.trim(), updatedAt: Date.now(), by: state.user };
-  if (!isFlex(w)) upd.orig = keepOrig(w, start, end);
+  const upd = { ...w, start, end, prio: $("edPrio").value, status, reason: admin ? $("edReason").value.trim() : w.reason, updatedAt: Date.now(), by: state.user };
+  if (!isFlex(w) && admin) upd.orig = keepOrig(w, start, end);
   if (isFlex(w)) {
     upd.len = Math.max(1, Math.round(Number($("edLen").value) || 1));
-    const as = $("edAFrom").value, ae = $("edATo").value;
+    const as = admin ? $("edAFrom").value : "", ae = admin ? $("edATo").value : "";
     if ((as || ae) && (!isValidIso(as) || !isValidIso(ae) || as > ae)) { toast("Zugeteilter Zeitraum ungültig.", "err"); return; }
     upd.aStart = as || ""; upd.aEnd = ae || "";
     if ((status === "zugeteilt" || status === "bestaetigt") && !upd.aStart) { toast("Für «zugeteilt/bestätigt» bitte «Zugeteilt von/bis» ausfüllen.", "err", 7000); return; }
   }
   const r = analyse(start, end, w.name, upd.prio, w.id, isFlex(w) ? upd.len : 0);
-  const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Samstage") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1"));
+  // Admin darf Regeln übersteuern, Mitarbeitende nicht
+  const hard = admin ? r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Samstage") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1")) : r.errs;
   if (hard.length) { toast("❌ " + esc(hard.join(" ")), "err", 8000); return; }
   try { await backend.setWish(upd); toast("💾 Gespeichert."); closeEdit(); }
   catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
@@ -1387,8 +1404,12 @@ function renderCalendar() {
   const ampelMap = ampelFor ? buildAbsentMap(state.wishes.filter(w => isGranted(w) && w.name !== ampelFor)) : null;
   const conf = state.isAdmin ? liveConflicts().res : new Map();
   let html = "";
+  const freeFor = targetName();
   for (let i = 0; i < weeks * 7; i++) {
+    if (fromIso(cur).getDay() === 0) { cur = addDays(cur, 1); continue; }   // Sonntag ausblenden
     const d = fromIso(cur), cls = ["day"];
+    const isFree = freeFor && isOpenDay(cur) && !isWorkday(freeFor, cur);
+    if (isFree) cls.push("freetag");
     if (d.getMonth() !== month) cls.push("other");
     if (!inYear(cur)) cls.push("outside");
     const g = d.getDay(), hol = holidayName(cur), sch = schoolName(cur);
@@ -1411,7 +1432,7 @@ function renderCalendar() {
     }).join("");
     const schStart = sch && (d.getDate() === 1 || schoolName(addDays(cur, -1)) !== sch);
     html += `<div class="${cls.join(" ")}" data-date="${cur}"${amp ? ` title="Runde 2: ${amp.tip}"` : ""}><span class="num">${d.getDate()}</span>
-      ${hol ? `<span class="hol-name">${esc(hol)}</span>` : ""}${sp ? `<span class="sperr-name">⛔ ${esc(sp)}</span>` : ""}${schStart ? `<span class="school-name">${esc(sch)}</span>` : ""}${chips}</div>`;
+      ${hol ? `<span class="hol-name">${esc(hol)}</span>` : ""}${sp ? `<span class="sperr-name">⛔ ${esc(sp)}</span>` : ""}${schStart ? `<span class="school-name">${esc(sch)}</span>` : ""}${isFree ? `<span class="free-name">${state.isAdmin && freeFor !== state.user ? esc(freeFor) + " " : ""}frei</span>` : ""}${chips}</div>`;
     cur = addDays(cur, 1);
   }
   $("calGrid").innerHTML = html;
@@ -1420,8 +1441,8 @@ function renderGantt() {
   if (!state.isAdmin || state.tab !== "uebersicht") return;
   const { year, month } = state.view;
   $("ganttTitle").textContent = `${MONATE[month]} ${year}`;
-  const n = new Date(year, month + 1, 0).getDate();
-  const days = Array.from({ length: n }, (_, i) => toIso(new Date(year, month, i + 1)));
+  const days = Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, i) => toIso(new Date(year, month, i + 1))).filter(d => wd(d) !== 0);
+  const n = days.length;
   const dcls = d => { const g = wd(d); return holidayName(d) ? "hol" : (g === 0 || g === 6) ? "we" : ""; };
   const drag = state.drag;
   const shifted = w => {
@@ -1455,19 +1476,20 @@ function renderGantt() {
           const { w, r } = hit;
           const bc = ["blk", "st-" + w.status];
           if (r.win) bc.push("flexwin");
-          if (d === r.start || d === days[0]) bc.push("first");
-          if (d === r.end || d === days[n - 1]) bc.push("last");
+          const di = days.indexOf(d), isFirst = di === 0 || days[di - 1] < r.start, isLast = di === n - 1 || days[di + 1] > r.end;
+          if (isFirst) bc.push("first");
+          if (isLast) bc.push("last");
           if (conf.has(w.id)) bc.push("conflict");
           if (drag && drag.id === w.id) bc.push("dragging");
           if (!isWorkday(w.name, d) && !r.win) bc.push("nc");
-          const label = (d === r.start || d === days[0]) ? (r.win ? `~${w.len}W` : PRIO_SHORT[w.prio]) : "";
+          const label = isFirst ? (r.win ? `~${w.len}W` : PRIO_SHORT[w.prio]) : "";
           const o = origOf(w);
-          if (o && !o.win && (d === r.start || d === days[0])) bc.push("moved");
+          if (o && !o.win && isFirst) bc.push("moved");
           const tip = `${w.name} · ${wishLabel(w)} · ${PRIO_LABEL[w.prio]} · ${STATUS_LABEL[w.status]}` + (o && !o.win ? `\nUrsprünglicher Wunsch: ${fmtRange(o.start, o.end)}` : "") +
             (isFlex(w) && !r.win ? `\nZugeteilt: ${fmtRange(r.start, r.end)}` : "") + (w.reason ? `\n${w.reason}` : "") + (conf.has(w.id) ? `\n⚠️ ${conf.get(w.id)}` : "");
           inner = `<div class="${bc.join(" ")}" data-gwish="${esc(w.id)}" style="background:${p.color};border-color:${p.color}" title="${esc(tip)}">${label}</div>`;
         }
-        h += `<td class="c ${dcls(d)}">${inner}</td>`;
+        h += `<td class="c ${dcls(d)}${isOpenDay(d) && !isWorkday(p.name, d) ? " fr" : ""}">${inner}</td>`;
       }
       h += "</tr>";
     }
@@ -1535,7 +1557,7 @@ function renderLastRun() {
 }
 function renderStatic() {
   $("yearTitle").textContent = JAHR;
-  $("calHead").innerHTML = ["Mo","Di","Mi","Do","Fr","Sa","So"].map(h => `<div>${h}</div>`).join("");
+  $("calHead").innerHTML = ["Mo","Di","Mi","Do","Fr","Sa"].map(h => `<div>${h}</div>`).join("");
   $("legend").innerHTML =
     `<span><i style="background:#fff;border-color:#2563eb"></i>Wunsch</span>` +
     `<span><i style="background:transparent;border:2px dashed #2563eb"></i>Zeitfenster (flexibel)</span>` +
@@ -1545,6 +1567,7 @@ function renderStatic() {
     `<span><span class="prio must">⭐</span>Must</span>` +
     `<span><i style="background:#fff;box-shadow:inset 0 3px 0 #7dd3fc;border-color:#e3e6ea"></i>Schulferien</span>` +
     `<span><i style="background:repeating-linear-gradient(45deg,#fff1f1,#fff1f1 3px,#fecaca 3px,#fecaca 6px)"></i>Feiertag BS</span>` +
+    `<span><i style="background:repeating-linear-gradient(45deg,#ede9fe,#ede9fe 3px,#f5f3ff 3px,#f5f3ff 6px);border-color:#c4b5fd"></i>eigener freier Tag</span>` +
     `<span><i style="background:repeating-linear-gradient(-45deg,#e5e7eb,#e5e7eb 3px,#9ca3af 3px,#9ca3af 6px)"></i>⛔ Sperrtag</span>`;
 }
 
