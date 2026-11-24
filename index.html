@@ -45,10 +45,31 @@
 
   .balance-banner { margin: 16px 20px 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
     padding: 16px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; border-left: 8px solid #9ca3af; }
-  .balance-banner .big { font-size: 22px; font-weight: 800; }
+  .balance-banner .big { font-size: 20px; font-weight: 800; }
   .balance-banner .small { color: var(--muted); font-size: 14px; }
-  .balance-banner .bar { flex: 1 1 200px; height: 12px; background: #e5e7eb; border-radius: 999px; overflow: hidden; min-width: 160px; position: relative; }
-  .balance-banner .bar > div { height: 100%; width: 0; transition: width .3s; }
+  .balance-banner { flex-direction: column; align-items: stretch; gap: 12px; }
+  .bb-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 800px) { .bb-body { grid-template-columns: minmax(0, 1fr); } }
+  .bb-body h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 500px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .tile .n { font-size: 22px; font-weight: 800; line-height: 1.1; }
+  .tile .l { font-size: 12px; color: var(--muted); }
+  .tile .d { font-size: 12px; font-weight: 600; }
+  .tile.t-ok { background: #f0fdf4; border-color: #bbf7d0; } .tile.t-ok .n { color: #15803d; }
+  .tile.t-open { background: #f8fafc; }
+  .tile.t-rej { background: #fef2f2; border-color: #fecaca; } .tile.t-rej .n { color: #b91c1c; }
+  .tile.t-rest { background: #eff6ff; border-color: #bfdbfe; } .tile.t-rest .n { color: #1d4ed8; }
+  .gbar { height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin-top: 10px; display: flex; }
+  .gbar > div { height: 100%; }
+  .gbar-l { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .rules { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .rules li { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .rules li:last-child { border-bottom: none; }
+  .rules .ic { font-weight: 800; width: 18px; flex-shrink: 0; text-align: center; }
+  .rules .ok .ic { color: #15803d; } .rules .bad .ic { color: #dc2626; } .rules .info .ic { color: #6b7280; }
+  .rules .bad { color: #991b1b; } .rules .v { margin-left: auto; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
 
   .tabs { margin: 16px 20px 0; display: none; gap: 8px; }
   body.is-admin .tabs { display: flex; }
@@ -270,11 +291,11 @@
   <div class="banner phase-banner" id="phaseBanner"><div class="txt" id="phaseText"></div></div>
 
   <div class="balance-banner" id="balanceBanner">
-    <div>
+    <div class="bb-head">
       <div class="big" id="balanceText">Bitte oben Ihren Namen wählen</div>
-      <div class="small" id="balanceSub">Danach mit Ihrem Kürzel anmelden und Ferienwünsche eintragen.</div>
+      <div class="small" id="balanceInfo">Danach mit Ihrem Kürzel anmelden und Ferienwünsche eintragen.</div>
     </div>
-    <div class="bar"><div id="balanceBar"></div></div>
+    <div class="bb-body" id="balanceBody"></div>
   </div>
 
   <div class="tabs" id="tabs">
@@ -1371,26 +1392,55 @@ function renderBalance() {
   const who = state.isAdmin ? state.bookFor : state.user;
   if (!who) {
     $("balanceText").textContent = "Bitte oben Ihren Namen wählen";
-    $("balanceSub").textContent = "Danach mit Ihrem Kürzel anmelden und Ferienwünsche eintragen.";
-    $("balanceBar").style.width = "0"; banner.style.borderLeftColor = "#9ca3af"; return;
+    $("balanceInfo").textContent = "Danach mit Ihrem Kürzel anmelden und Ferienwünsche eintragen.";
+    $("balanceBody").innerHTML = ""; banner.style.borderLeftColor = "#9ca3af"; return;
   }
-  const p = PERSON[who], mine = state.wishes.filter(w => w.name === who && w.status !== "abgelehnt");
-  const wished = mine.reduce((s, w) => s + wishDays(w), 0);
-  const conf = mine.filter(w => w.status === "bestaetigt").reduce((s, w) => s + grantedDays(w), 0);
-  const must = mine.filter(w => w.prio === "must").reduce((s, w) => s + wishDays(w), 0);
-  const ns = nsDays(who, false), nsReq = nsRequired(who);
-  $("balanceText").textContent = `${who}: Guthaben ${p.tage} Tage (${p.pensum} %)`;
-  const core = mine.filter(w => w.prio !== "p2").reduce((s, w) => s + wishDays(w), 0);
+  const p = PERSON[who], all = state.wishes.filter(w => w.name === who);
   const f1 = n => String(Math.round(n * 10) / 10).replace(".", ",");
-  const over = wished > p.tage;
-  $("balanceSub").innerHTML = esc(`${plural(mine.length, "Wunsch", "Wünsche")} · Must + Prio 1: ${f1(core)} von ${f1(p.tage)} Tagen · `) +
-    `<span style="${over ? "color:#b45309;font-weight:700" : ""}">total inkl. Prio 2: ${f1(wished)} Tage${over ? " (über dem Guthaben – Prio 2 gilt als Reserve)" : ""}</span>` +
-    esc(` · ⭐ Must: ${f1(must)} von max. ${f1(mustLimit(who))} Tagen`) +
-    ` · Nebensaison (Jan–März, Okt–Dez): <b style="color:${ns >= nsReq ? "#15803d" : "#b45309"}">${ns} von min. ${nsReq} Tagen</b>` +
-    (state.isAdmin || state.cfg.phase === "veroeffentlicht" ? esc(` · bestätigt: ${conf} Tage`) : "") +
-    ` · Abgezogen werden nur Arbeitstage (frei: ${esc(freiTxt(p))})`;
-  $("balanceBar").style.width = Math.min(100, wished / p.tage * 100) + "%";
-  $("balanceBar").style.background = p.color; banner.style.borderLeftColor = p.color;
+  const tg = n => `${f1(n)} ${n === 1 ? "Tag" : "Tage"}`;
+  const tgD = n => `${f1(n)} ${n === 1 ? "Tag" : "Tagen"}`;   // Dativ: «von 25 Tagen»
+  const active = all.filter(w => w.status !== "abgelehnt");
+  const granted = all.filter(isGranted), conf = all.filter(w => w.status === "bestaetigt");
+  const open = all.filter(w => w.status === "offen"), rej = all.filter(w => w.status === "abgelehnt");
+  const gDays = granted.reduce((s, w) => s + grantedDays(w), 0), cDays = conf.reduce((s, w) => s + grantedDays(w), 0);
+  const oDays = open.reduce((s, w) => s + wishDays(w), 0);
+  const rest = p.tage - gDays;
+
+  $("balanceText").textContent = `${who} · Guthaben ${tg(p.tage)}`;
+  $("balanceInfo").textContent = `${p.pensum} % · frei: ${freiTxt(p)} · abgezogen werden nur Arbeitstage`;
+  banner.style.borderLeftColor = p.color;
+
+  const tile = (cls, n, l, d) => `<div class="tile ${cls}"><div class="n">${n}</div><div class="l">${l}</div>${d ? `<div class="d">${d}</div>` : ""}</div>`;
+  const pc = x => Math.max(0, Math.min(100, x / p.tage * 100));
+  const tiles = `<h4>Stand meiner Wünsche</h4><div class="tiles">` +
+    tile("t-ok", granted.length, "zugeteilt", granted.length ? tg(gDays) + (cDays ? ` · ${f1(cDays)} bestätigt` : "") : "") +
+    tile("t-open", open.length, "offen", open.length ? tg(oDays) : "") +
+    tile("t-rej", rej.length, "abgelehnt", "") +
+    tile("t-rest", f1(rest), "Restguthaben", `von ${tgD(p.tage)}`) + `</div>` +
+    `<div class="gbar"><div style="width:${pc(cDays)}%;background:#15803d"></div><div style="width:${pc(gDays - cDays)}%;background:#86efac"></div></div>` +
+    `<div class="gbar-l">${f1(gDays)} von ${tgD(p.tage)} zugeteilt${cDays ? ` (davon ${f1(cDays)} bestätigt)` : ""}</div>`;
+
+  // Regeln prüfen
+  const sum = (list) => list.reduce((s, w) => s + wishDays(w), 0);
+  const must = sum(active.filter(w => w.prio === "must")), mustMax = mustLimit(who);
+  const core = sum(active.filter(w => w.prio !== "p2")), reserve = sum(active.filter(w => w.prio === "p2"));
+  const ns = nsDays(who, false), nsReq = nsRequired(who);
+  const ranges = active.map(w => ({ w, r: effRange(w) || (isFlex(w) ? null : { start: w.start, end: w.end }) })).filter(x => x.r);
+  const sperrHit = ranges.find(x => sperrIn(who, x.r));
+  const satHit = ranges.find(x => saturdayRule(who, x.r));
+  const rules = [
+    [must <= mustMax, "⭐ Must max. " + f1(Number(state.cfg.mustWochen ?? 2)) + " Wochen", `${f1(must)} / ${f1(mustMax)}`],
+    [core <= p.tage, "Must + Prio 1 max. Guthaben", `${f1(core)} / ${f1(p.tage)}`],
+    [ns >= nsReq, `Nebensaison (Jan–März, Okt–Dez) min. ${f1(Number(state.cfg.nebensaisonWochen ?? 2))} Wochen`, `${f1(ns)} / ${f1(nsReq)}`],
+    [!sperrHit, "Keine Ferien an Sperrtagen", sperrHit ? fmtRange(sperrHit.r.start, sperrHit.r.end) : "ok"],
+    [!satHit, "Saison: pro Ferienwoche max. 1 Samstag", satHit ? fmtRange(satHit.r.start, satHit.r.end) : "ok"],
+    [gDays <= p.tage, "Zugeteilt max. Guthaben", `${f1(gDays)} / ${f1(p.tage)}`]
+  ];
+  const ruleList = `<h4>Regeln</h4><ul class="rules">` +
+    rules.map(([ok, t, v]) => `<li class="${ok ? "ok" : "bad"}"><span class="ic">${ok ? "✓" : "✗"}</span><span>${esc(t)}</span><span class="v">${esc(v)}</span></li>`).join("") +
+    (reserve ? `<li class="info"><span class="ic">i</span><span>Prio 2 (Reserve, nur falls etwas nicht klappt)</span><span class="v">${f1(reserve)}</span></li>` : "") +
+    `</ul>`;
+  $("balanceBody").innerHTML = `<div>${tiles}</div><div>${ruleList}</div>`;
 }
 function renderCalendar() {
   const { year, month } = state.view;
