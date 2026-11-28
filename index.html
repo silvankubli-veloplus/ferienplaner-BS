@@ -585,38 +585,38 @@ const EINGABE_BIS = "13. Dezember 2026";     // Frist Runde 1, wird im Hinweis f
 const ADMIN_NAME = "Silvan";
 const ADMIN_PIN = "31174";                     // ⚠️ vor dem Einsatz ändern (mind. 6 Zeichen)
 const FIREBASE_VERSION = "10.12.2";
-const GRUPPEN = ["Verkauf", "Clinic"];
+const GRUPPEN = ["Verkauf", "Clinic", "Keiner"];
 
 /* Start-Team (nur beim allerersten Start; danach im Reiter «👥 Team» in der App pflegen).
    frei = reguläre freie Tage (1=Mo … 6=Sa). Wer im Wechsel frei hat: freiB = freie Tage in ungeraden KW.
    rolle: "TL" (Teamleitung) / "Stv" (Stellvertretung) → nie gleichzeitig weg.
    ⚠️ Pensum und Ferientage sind vorläufig (aus den Arbeitstagen abgeleitet) – im Reiter «Team» prüfen. */
 // Ferientage = Basis × Pensum: Basis 25 Tage; 27,5 Tage für Sven, Patrick, Susan, Andreas, Jacqueline; 30 Tage für Silvan, Raymond.
-// ⚠️ Mit «PRÜFEN» markierte Angaben (Pensum / freie Tage) sind unsicher oder fehlen – im Reiter «Team» kontrollieren.
+// Quelle: Jahresplan_2027.xlsx, Blatt «Personen» (Stand 28.11.2026). FR = frei; W (Wechsel) = zählt als halber Tag;
+// S (Schule) bei Lernenden = frei. «Keiner» = weder Verkauf noch Clinic (zählt bei Gruppen-Limits nicht mit).
 const ft = (basis, pensum) => Math.round(basis * pensum) / 100;
 const START_TEAM = [
-  { name: "Silvan",     kuerzel: "SKB", pensum: 100, tage: ft(30, 100),   gruppe: "Verkauf", rolle: "TL",  frei: [5] },
-  { name: "Sven",       kuerzel: "DES", pensum: 90,  tage: ft(27.5, 90),  gruppe: "Verkauf", rolle: "Stv", frei: [1] },
-  { name: "Patrick",    kuerzel: "BRP", pensum: 95,  tage: ft(27.5, 95),  gruppe: "Verkauf", frei: [4] },
-  { name: "Yannik",     kuerzel: "PAY", pensum: 90,  tage: ft(25, 90),    gruppe: "Verkauf", frei: [2] },          // PRÜFEN: Mi/Sa im Wechsel
-  { name: "Emanuel W.", kuerzel: "EWE", pensum: 100, tage: ft(25, 100),   gruppe: "Verkauf", frei: [1] },
-  { name: "Max",        kuerzel: "MHE", pensum: 100, tage: ft(25, 100),   gruppe: "Verkauf", frei: [] },           // PRÜFEN: Pensum, freie Tage
-  { name: "Doris",      kuerzel: "DOS", pensum: 80,  tage: ft(25, 80),    gruppe: "Verkauf", frei: [2] },          // PRÜFEN: Do/Sa im Wechsel
-  { name: "Yvonne",     kuerzel: "YMU", pensum: 70,  tage: ft(25, 70),    gruppe: "Verkauf", frei: [3, 4] },       // PRÜFEN: Sa im Wechsel
-  { name: "Jacqueline", kuerzel: "JLE", pensum: 70,  tage: ft(27.5, 70),  gruppe: "Verkauf", frei: [4, 5], halb: [6] },
-  { name: "Lars",       kuerzel: "LKO", pensum: 90,  tage: ft(25, 90),    gruppe: "Verkauf", frei: [2] },
-  { name: "Malte",      kuerzel: "MKR", pensum: 80,  tage: ft(25, 80),    gruppe: "Verkauf", frei: [3, 4] },
-  { name: "Andreas",    kuerzel: "AGA", pensum: 100, tage: ft(27.5, 100), gruppe: "Verkauf", frei: [1] },
-  { name: "Sara",       kuerzel: "SLT", pensum: 60,  tage: ft(25, 60),    gruppe: "Verkauf", frei: [3, 4, 5] },    // PRÜFEN: arbeitet Sa?
-  { name: "Eliane",     kuerzel: "ETA", pensum: 20,  tage: ft(25, 20),    gruppe: "Verkauf", frei: [1, 2, 3, 4, 5] },
-  { name: "Nevio",      kuerzel: "NCI", pensum: 100, tage: ft(25, 100),   gruppe: "Verkauf", frei: [1, 2] },       // Lernender, Mo/Di Schule
-  { name: "Susan",      kuerzel: "SCA", pensum: 100, tage: ft(27.5, 100), gruppe: "Verkauf", frei: [] },           // PRÜFEN: Pensum, freie Tage
-  { name: "Benjamin",   kuerzel: "BEH", pensum: 70,  tage: ft(25, 70),    gruppe: "Clinic",  frei: [] },           // PRÜFEN: freie Tage
-  { name: "Emanuel F.", kuerzel: "FIE", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
-  { name: "Stefano",    kuerzel: "SSA", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
-  { name: "Joel",       kuerzel: "JIS", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
-  { name: "Raymond",    kuerzel: "RRI", pensum: 100, tage: ft(30, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
-  { name: "Nayan",      kuerzel: "HAN", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] }            // PRÜFEN, Lernender
+  { name: "Silvan", kuerzel: "SKB", pensum: 100, tage: ft(30, 100), gruppe: "Verkauf", rolle: "TL", frei: [2] },
+  { name: "Sven", kuerzel: "DES", pensum: 90, tage: ft(27.5, 90), gruppe: "Verkauf", rolle: "Stv", frei: [3, 4] },
+  { name: "Patrick", kuerzel: "BRP", pensum: 95, tage: ft(27.5, 95), gruppe: "Verkauf", frei: [1, 4] },
+  { name: "Yannik", kuerzel: "PAY", pensum: 90, tage: ft(25, 90), gruppe: "Verkauf", frei: [2], halb: [3, 6] },
+  { name: "Emanuel W.", kuerzel: "EWE", pensum: 100, tage: ft(25, 100), gruppe: "Verkauf", frei: [1] },
+  { name: "Doris", kuerzel: "DOS", pensum: 80, tage: ft(25, 80), gruppe: "Verkauf", frei: [2], halb: [4, 6] },
+  { name: "Yvonne", kuerzel: "YMU", pensum: 70, tage: ft(25, 70), gruppe: "Verkauf", frei: [1, 3], halb: [6] },
+  { name: "Jacqueline", kuerzel: "JLE", pensum: 70, tage: ft(27.5, 70), gruppe: "Verkauf", frei: [4, 5], halb: [6] },
+  { name: "Lars", kuerzel: "LKO", pensum: 90, tage: ft(25, 90), gruppe: "Verkauf", frei: [1, 2] },
+  { name: "Malte", kuerzel: "MKR", pensum: 80, tage: ft(25, 80), gruppe: "Verkauf", frei: [3, 4] },
+  { name: "Andreas", kuerzel: "AGA", pensum: 100, tage: ft(27.5, 100), gruppe: "Verkauf", frei: [1] },
+  { name: "Sara", kuerzel: "SLT", pensum: 60, tage: ft(25, 60), gruppe: "Verkauf", frei: [3, 4, 5] },
+  { name: "Eliane", kuerzel: "ETA", pensum: 20, tage: ft(25, 20), gruppe: "Verkauf", frei: [1, 2, 3, 4, 5] },
+  { name: "Nevio", kuerzel: "NCI", pensum: 100, tage: ft(25, 100), gruppe: "Verkauf", frei: [1, 2], halb: [6] },
+  { name: "Susan", kuerzel: "SCA", pensum: 90, tage: ft(27.5, 90), gruppe: "Keiner", frei: [3] },
+  { name: "Benjamin", kuerzel: "BEH", pensum: 70, tage: ft(25, 70), gruppe: "Keiner", frei: [1, 5], halb: [6] },
+  { name: "Emanuel F.", kuerzel: "FIE", pensum: 90, tage: ft(25, 90), gruppe: "Clinic", frei: [3], halb: [1, 6] },
+  { name: "Stefano", kuerzel: "SSA", pensum: 90, tage: ft(25, 90), gruppe: "Clinic", frei: [3] },
+  { name: "Joel", kuerzel: "JIS", pensum: 90, tage: ft(25, 90), gruppe: "Clinic", frei: [1] },
+  { name: "Raymond", kuerzel: "RRI", pensum: 100, tage: ft(30, 100), gruppe: "Clinic", frei: [6] },
+  { name: "Nayan", kuerzel: "HAN", pensum: 100, tage: ft(25, 100), gruppe: "Clinic", frei: [2, 6] }
 ];
 
 /* Schulferien Basel-Stadt 2027 – Vorschlag, NICHT aus offizieller Quelle geprüft.
