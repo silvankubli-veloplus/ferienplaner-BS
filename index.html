@@ -68,7 +68,7 @@
   .rules li { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); }
   .rules li:last-child { border-bottom: none; }
   .rules .ic { font-weight: 800; width: 18px; flex-shrink: 0; text-align: center; }
-  .rules .ok .ic { color: #15803d; } .rules .bad .ic { color: #dc2626; } .rules .info .ic { color: #6b7280; }
+  .rules .ok .ic { color: #15803d; } .rules .bad .ic { color: #dc2626; } .rules .info .ic { color: #6b7280; } .rules .warn .ic { color: #b45309; } .rules .warn { color: #92400e; }
   .rules .bad { color: #991b1b; }
   table.ptable { min-width: 980px; font-size: 13px; }
   table.ptable tr[data-person] { cursor: pointer; }
@@ -364,7 +364,7 @@
 
     <section class="card hidden" id="teamCard">
       <h2>Team: Guthaben, Pensum &amp; freie Tage</h2>
-      <p class="hint">Änderungen werden sofort gespeichert. Abgezogen werden pro Person nur ihre <b>Arbeitstage</b> (Mo–Sa ohne freie Tage, ohne Feiertage). Bei «Halber Tag» angekreuzte Wochentage zählen nur ½. Wer im Wechsel frei hat: «im Wechsel» ankreuzen und die freien Tage für gerade und ungerade Kalenderwochen setzen. Das Kürzel ist das Passwort der Person.</p>
+      <p class="hint">Änderungen werden sofort gespeichert. <b>Anspruch</b> = Ferientage bei 5 Arbeitstagen pro Woche (25 / 27,5 / 30). Daraus rechnet die App die <b>Ferientage</b> der Person: Anspruch ÷ 5 × Arbeitstage pro Woche – so hat jede Person gleich viele Ferien<b>wochen</b>, wie bei der Rechnung in Stunden. Abgezogen werden pro Person nur ihre <b>Arbeitstage</b> (Mo–Sa ohne freie Tage, ohne Feiertage). Bei «Halber Tag» angekreuzte Wochentage zählen nur ½. Wer im Wechsel frei hat: «im Wechsel» ankreuzen und die freien Tage für gerade und ungerade Kalenderwochen setzen. Das Kürzel ist das Passwort der Person.</p>
       <div class="gantt-wrap"><table class="bal" id="teamTable" style="min-width:860px"></table></div>
       <div class="add-box" style="margin-top:14px">
         <h3 style="margin-top:0">Person hinzufügen</h3>
@@ -409,6 +409,16 @@
             <option value="runde2">2b · Runde 2 offen (nur Personen mit Ablehnungen)</option>
             <option value="veroeffentlicht">3 · Veröffentlicht (Team sieht bestätigte Ferien)</option>
           </select>
+        </div>
+        <div class="field">
+          <label for="deadlineInput">Eingabeschluss Runde 1 (danach kann das Team nichts mehr ändern)</label>
+          <input type="datetime-local" id="deadlineInput">
+          <span class="hint" id="deadlineInfo"></span>
+        </div>
+        <div class="field">
+          <label for="deadline2Input">Eingabeschluss Runde 2</label>
+          <input type="datetime-local" id="deadline2Input">
+          <span class="hint" id="deadline2Info"></span>
         </div>
         <div class="btn-row">
           <button class="btn" id="distributeBtn">⚖️ Fair verteilen</button>
@@ -581,7 +591,8 @@ const firebaseConfig = {
    2) EINSTELLUNGEN
    ===================================================================== */
 const JAHR = 2027;
-const EINGABE_BIS = "13. Dezember 2026";     // Frist Runde 1, wird im Hinweis fürs Team angezeigt
+const EINGABE_BIS = "13. Dezember 2026";
+const EINGABESCHLUSS = "2026-12-14T04:00";        // Runde 1: ab diesem Zeitpunkt (Ortszeit) kann das Team nichts mehr ändern     // Frist Runde 1, wird im Hinweis fürs Team angezeigt
 const ADMIN_NAME = "Silvan";
 const ADMIN_PIN = "31174";                     // ⚠️ vor dem Einsatz ändern (mind. 6 Zeichen)
 const FIREBASE_VERSION = "10.12.2";
@@ -591,32 +602,32 @@ const GRUPPEN = ["Verkauf", "Clinic", "Keiner"];
    frei = reguläre freie Tage (1=Mo … 6=Sa). Wer im Wechsel frei hat: freiB = freie Tage in ungeraden KW.
    rolle: "TL" (Teamleitung) / "Stv" (Stellvertretung) → nie gleichzeitig weg.
    ⚠️ Pensum und Ferientage sind vorläufig (aus den Arbeitstagen abgeleitet) – im Reiter «Team» prüfen. */
-// Ferientage = Basis × Pensum: Basis 25 Tage; 27,5 Tage für Sven, Patrick, Susan, Andreas, Jacqueline; 30 Tage für Silvan, Raymond.
+// Anspruch (basis) = Ferientage bei 5 Arbeitstagen/Woche: 25; 27,5 für Sven, Patrick, Susan, Andreas, Jacqueline; 30 für Silvan, Raymond.
+// Die Ferientage pro Person rechnet die App: Basis ÷ 5 × Arbeitstage pro Woche (Veloplus rechnet in Stunden – gleich, wenn alle Arbeitstage gleich lang sind).
 // Quelle: Jahresplan_2027.xlsx, Blatt «Personen» (Stand 28.11.2026). FR = frei; W (Wechsel) = zählt als halber Tag;
-// S (Schule) bei Lernenden = frei. «Keiner» = weder Verkauf noch Clinic (zählt bei Gruppen-Limits nicht mit).
-const ft = (basis, pensum) => Math.round(basis * pensum) / 100;
+// S (Schule) bei Lernenden = Schultag (in Schulferien Arbeitstag, Ferien nur in Schulferien). «Keiner» = weder Verkauf noch Clinic (zählt bei Gruppen-Limits nicht mit).
 const START_TEAM = [
-  { name: "Silvan", kuerzel: "SKB", pensum: 100, tage: ft(30, 100), gruppe: "Verkauf", rolle: "TL", frei: [2] },
-  { name: "Sven", kuerzel: "DES", pensum: 90, tage: ft(27.5, 90), gruppe: "Verkauf", rolle: "Stv", frei: [3, 4] },
-  { name: "Patrick", kuerzel: "BRP", pensum: 95, tage: ft(27.5, 95), gruppe: "Verkauf", frei: [1, 4] },
-  { name: "Yannik", kuerzel: "PAY", pensum: 90, tage: ft(25, 90), gruppe: "Verkauf", frei: [2], halb: [3, 6] },
-  { name: "Emanuel W.", kuerzel: "EWE", pensum: 100, tage: ft(25, 100), gruppe: "Verkauf", frei: [1] },
-  { name: "Doris", kuerzel: "DOS", pensum: 80, tage: ft(25, 80), gruppe: "Verkauf", frei: [2], halb: [4, 6] },
-  { name: "Yvonne", kuerzel: "YMU", pensum: 70, tage: ft(25, 70), gruppe: "Verkauf", frei: [1, 3], halb: [6] },
-  { name: "Jacqueline", kuerzel: "JLE", pensum: 70, tage: ft(27.5, 70), gruppe: "Verkauf", frei: [4, 5], halb: [6] },
-  { name: "Lars", kuerzel: "LKO", pensum: 90, tage: ft(25, 90), gruppe: "Verkauf", frei: [1, 2] },
-  { name: "Malte", kuerzel: "MKR", pensum: 80, tage: ft(25, 80), gruppe: "Verkauf", frei: [3, 4] },
-  { name: "Andreas", kuerzel: "AGA", pensum: 100, tage: ft(27.5, 100), gruppe: "Verkauf", frei: [1] },
-  { name: "Sara", kuerzel: "SLT", pensum: 60, tage: ft(25, 60), gruppe: "Verkauf", frei: [3, 4, 5] },
-  { name: "Eliane", kuerzel: "ETA", pensum: 20, tage: ft(25, 20), gruppe: "Verkauf", frei: [1, 2, 3, 4, 5] },
-  { name: "Nevio", kuerzel: "NCI", pensum: 100, tage: ft(25, 100), gruppe: "Verkauf", frei: [1, 2], halb: [6] },
-  { name: "Susan", kuerzel: "SCA", pensum: 90, tage: ft(27.5, 90), gruppe: "Keiner", frei: [3] },
-  { name: "Benjamin", kuerzel: "BEH", pensum: 70, tage: ft(25, 70), gruppe: "Keiner", frei: [1, 5], halb: [6] },
-  { name: "Emanuel F.", kuerzel: "FIE", pensum: 90, tage: ft(25, 90), gruppe: "Clinic", frei: [3], halb: [1, 6] },
-  { name: "Stefano", kuerzel: "SSA", pensum: 90, tage: ft(25, 90), gruppe: "Clinic", frei: [3] },
-  { name: "Joel", kuerzel: "JIS", pensum: 90, tage: ft(25, 90), gruppe: "Clinic", frei: [1] },
-  { name: "Raymond", kuerzel: "RRI", pensum: 100, tage: ft(30, 100), gruppe: "Clinic", frei: [6] },
-  { name: "Nayan", kuerzel: "HAN", pensum: 100, tage: ft(25, 100), gruppe: "Clinic", frei: [2, 6] }
+  { name: "Silvan", kuerzel: "SKB", pensum: 100, basis: 30, gruppe: "Verkauf", rolle: "TL", frei: [2] },
+  { name: "Sven", kuerzel: "DES", pensum: 90, basis: 27.5, gruppe: "Verkauf", rolle: "Stv", frei: [3, 4] },
+  { name: "Patrick", kuerzel: "BRP", pensum: 95, basis: 27.5, gruppe: "Verkauf", frei: [1, 4] },
+  { name: "Yannik", kuerzel: "PAY", pensum: 90, basis: 25, gruppe: "Verkauf", frei: [2], halb: [3, 6] },
+  { name: "Emanuel W.", kuerzel: "EWE", pensum: 100, basis: 25, gruppe: "Verkauf", frei: [1] },
+  { name: "Doris", kuerzel: "DOS", pensum: 80, basis: 25, gruppe: "Verkauf", frei: [2], halb: [4, 6] },
+  { name: "Yvonne", kuerzel: "YMU", pensum: 70, basis: 25, gruppe: "Verkauf", frei: [1, 3], halb: [6] },
+  { name: "Jacqueline", kuerzel: "JLE", pensum: 70, basis: 27.5, gruppe: "Verkauf", frei: [4, 5], halb: [6] },
+  { name: "Lars", kuerzel: "LKO", pensum: 90, basis: 25, gruppe: "Verkauf", frei: [1, 2] },
+  { name: "Malte", kuerzel: "MKR", pensum: 80, basis: 25, gruppe: "Verkauf", frei: [3, 4] },
+  { name: "Andreas", kuerzel: "AGA", pensum: 100, basis: 27.5, gruppe: "Verkauf", frei: [1] },
+  { name: "Sara", kuerzel: "SLT", pensum: 60, basis: 25, gruppe: "Verkauf", frei: [3, 4, 5] },
+  { name: "Eliane", kuerzel: "ETA", pensum: 20, basis: 25, gruppe: "Verkauf", frei: [1, 2, 3, 4, 5] },
+  { name: "Nevio", kuerzel: "NCI", pensum: 100, basis: 25, gruppe: "Verkauf", frei: [], halb: [6], schule: [1, 2] },
+  { name: "Susan", kuerzel: "SCA", pensum: 90, basis: 27.5, gruppe: "Keiner", frei: [3] },
+  { name: "Benjamin", kuerzel: "BEH", pensum: 70, basis: 25, gruppe: "Keiner", frei: [1, 5], halb: [6] },
+  { name: "Emanuel F.", kuerzel: "FIE", pensum: 90, basis: 25, gruppe: "Clinic", frei: [3], halb: [1, 6] },
+  { name: "Stefano", kuerzel: "SSA", pensum: 90, basis: 25, gruppe: "Clinic", frei: [3] },
+  { name: "Joel", kuerzel: "JIS", pensum: 90, basis: 25, gruppe: "Clinic", frei: [1] },
+  { name: "Raymond", kuerzel: "RRI", pensum: 100, basis: 30, gruppe: "Clinic", frei: [6] },
+  { name: "Nayan", kuerzel: "HAN", pensum: 100, basis: 25, gruppe: "Clinic", frei: [6], schule: [2] }
 ];
 
 /* Schulferien Basel-Stadt 2027 – Vorschlag, NICHT aus offizieller Quelle geprüft.
@@ -653,9 +664,17 @@ let MITARBEITENDE = [], PERSON = {}, NAMES = [];
 function setPeople(list) {
   MITARBEITENDE = (list || []).filter(m => m && m.name).map((m, i) => ({
     gruppe: GRUPPEN[0], pensum: 100, tage: 25, kuerzel: "", rolle: "", ...m,
-    frei: Array.isArray(m.frei) ? m.frei.map(Number) : [], freiB: Array.isArray(m.freiB) ? m.freiB.map(Number) : null, halb: Array.isArray(m.halb) ? m.halb.map(Number) : [],
+    frei: Array.isArray(m.frei) ? m.frei.map(Number) : [], freiB: Array.isArray(m.freiB) ? m.freiB.map(Number) : null, halb: Array.isArray(m.halb) ? m.halb.map(Number) : [], schule: Array.isArray(m.schule) ? m.schule.map(Number) : [],
     color: m.color || PALETTE[i % PALETTE.length]
   }));
+  // Ferientage = Anspruch in Wochen (Basis ÷ 5) × Arbeitstage pro Woche (halbe Tage ½, Wechsel gemittelt).
+  // Entspricht der Rechnung in Stunden, wenn die Person an allen Arbeitstagen gleich lange arbeitet.
+  for (const m of MITARBEITENDE) {
+    if (m.basis == null) continue;
+    const wk = free => [1, 2, 3, 4, 5, 6].filter(x => !free.includes(x)).reduce((s, x) => s + (m.halb.includes(x) ? 0.5 : 1), 0);
+    const perWk = (wk(m.frei) + (m.freiB ? wk(m.freiB) : wk(m.frei))) / 2;
+    m.tage = Math.round(Number(m.basis) / 5 * perWk * 100) / 100;
+  }
   PERSON = Object.fromEntries(MITARBEITENDE.map(m => [m.name, m]));
   NAMES = MITARBEITENDE.map(m => m.name);
 }
@@ -667,7 +686,7 @@ const STATUS_LABEL = { offen: "Wunsch", zugeteilt: "vorläufig zugeteilt", besta
 const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const WT_KURZ = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const NS_MONATE = [0, 1, 2, 9, 10, 11];  // Jan–März, Okt–Dez
-const DEFAULT_CONFIG = { people: START_TEAM, phase: "wuensche", mustWochen: 2, pairs: [], schulferien: SCHULFERIEN_VORSCHLAG, vorrang: [], lastRun: null, ...REGELN_START };
+const DEFAULT_CONFIG = { people: START_TEAM, phase: "wuensche", eingabeschluss: EINGABESCHLUSS, mustWochen: 2, pairs: [], schulferien: SCHULFERIEN_VORSCHLAG, vorrang: [], lastRun: null, ...REGELN_START };
 
 const $ = id => document.getElementById(id);
 
@@ -684,7 +703,10 @@ const fmtRange = (a, b) => a === b ? fmtDateLong(a) : `${fmtShort(a)} – ${fmtD
 function datesBetween(a, b) { const out = []; let c = a <= b ? a : b; const e = a <= b ? b : a; while (c <= e) { out.push(c); c = addDays(c, 1); } return out; }
 const inYear = s => s.startsWith(JAHR + "-");
 const wd = s => fromIso(s).getDay();
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/* Toleranz: Guthaben darf um weniger als 1 Tag überschritten werden (Minus geht ins nächste Jahr) */
+const TOLERANZ = 0.99;
+const over = (a, limit) => a - limit > TOLERANZ + 1e-9;
+const plural = (n, one, many) => `${String(Math.round(n * 100) / 100).replace(".", ",")} ${n === 1 ? one : many}`;
 
 /* ---------------------- Feiertage Basel-Stadt ---------------------- */
 function easterSunday(Y) {
@@ -718,7 +740,16 @@ function freeDaysOn(p, s) { return (p.freiB && isoWeek(s) % 2 === 1) ? p.freiB :
 function isWorkday(name, s) {
   if (!isOpenDay(s)) return false;
   const p = PERSON[name]; if (!p) return wd(s) <= 5;
-  return !freeDaysOn(p, s).includes(wd(s));
+  if (freeDaysOn(p, s).includes(wd(s))) return false;
+  // Lernende: Schultage sind keine Arbeitstage – ausser in den Schulferien, dann wird gearbeitet
+  if (p.schule && p.schule.includes(wd(s)) && !schoolName(s)) return false;
+  return true;
+}
+/* Lernende (mit Schultagen): Ferien nur während der Schulferien */
+function schoolRule(name, r) {
+  const p = PERSON[name]; if (!p || !p.schule || !p.schule.length) return null;
+  const d = datesBetween(r.start, r.end).find(x => isOpenDay(x) && !freeDaysOn(p, x).includes(wd(x)) && !schoolName(x));
+  return d ? `Lernende: Ferien nur während der Schulferien (${fmtDate(d)} ist keine Schulferienzeit)` : null;
 }
 /* Gewicht eines Arbeitstags fürs Guthaben: 1 oder 0.5 (Wochentage in «halb») */
 function dayWeight(name, s) {
@@ -740,7 +771,7 @@ function daysPerWeek(name) {
   return (n(p.frei) + (p.freiB ? n(p.freiB) : n(p.frei))) / 2;
 }
 const WT_NAMEN = { 1: "Mo", 2: "Di", 3: "Mi", 4: "Do", 5: "Fr", 6: "Sa" };
-const freiTxt = p => (p.frei.map(x => WT_NAMEN[x]).join("+") || "–") + (p.freiB ? ` / ${p.freiB.map(x => WT_NAMEN[x]).join("+") || "–"} (Wechsel)` : "") + (p.halb.length ? `; ${p.halb.map(x => WT_NAMEN[x]).join("+")} zählt halb` : "");
+const freiTxt = p => (p.frei.map(x => WT_NAMEN[x]).join("+") || "–") + (p.schule.length ? `; Schule ${p.schule.map(x => WT_NAMEN[x]).join("+")} (in Schulferien Arbeit)` : "") + (p.freiB ? ` / ${p.freiB.map(x => WT_NAMEN[x]).join("+") || "–"} (Wechsel)` : "") + (p.halb.length ? `; ${p.halb.map(x => WT_NAMEN[x]).join("+")} zählt halb` : "");
 
 /* ---------------------- Zustand ---------------------- */
 const state = {
@@ -926,6 +957,7 @@ function findViolation(w, r, absentMap) {
   const g = groupOf(w.name), pen = pensumOf(w.name);
   const pairs = allPairs(), limits = state.cfg.limits || [];
   const sat = saturdayRule(w.name, r); if (sat) return sat;
+  const sch = schoolRule(w.name, r); if (sch) return sch;
   const sp = sperrIn(w.name, r); if (sp) return `Sperrtag «${sperrName(sp)}» am ${fmtDate(sp)}`;
   for (const d of datesBetween(r.start, r.end)) {
     if (!isWorkday(w.name, d)) continue;
@@ -1031,7 +1063,7 @@ function distribute(seed) {
     const p = PERSON[w.name];
     if (!p) return reject(w, "Person nicht in der Liste");
     const days = wishDays(w), left = p.tage - (used[w.name] || 0);
-    if (days > left) return reject(w, `Guthaben reicht nicht (${plural(days, "Tag", "Tage")} gewünscht, noch ${left} übrig)`);
+    if (over(days, left)) return reject(w, `Guthaben reicht nicht (${plural(days, "Tag", "Tage")} gewünscht, noch ${plural(left, "Tag", "Tage")} übrig)`);
     const ownClash = r => (own[w.name] || []).some(o => overlap(o, r));
     if (!isFlex(w)) {
       const r = { start: w.start, end: w.end };
@@ -1271,7 +1303,12 @@ function requireUser() {
   const s = $("userSelect"); s.classList.remove("attention"); void s.offsetWidth; s.classList.add("attention"); s.focus();
   toast("Bitte zuerst oben bei «Ich bin» Ihren Namen wählen.", "err"); return false;
 }
-const canEdit = () => state.isAdmin || state.cfg.phase === "wuensche" || (state.cfg.phase === "runde2" && hasLost(state.user));
+/* Stop: In der Wunschphase (Runde 1) ist ab dem Eingabeschluss nichts mehr änderbar – bis der Admin Runde 2 öffnet */
+const r1Locked = () => { const t = state.cfg.eingabeschluss; return !!t && Date.now() >= new Date(t).getTime(); };
+const r1Open = () => state.cfg.phase === "wuensche" && !r1Locked();
+const r2Locked = () => { const t = state.cfg.eingabeschluss2; return !!t && Date.now() >= new Date(t).getTime(); };
+const r2Open = () => state.cfg.phase === "runde2" && !r2Locked();
+const canEdit = () => state.isAdmin || r1Open() || (r2Open() && hasLost(state.user));
 function onDayClick(date) {
   if (!requireUser()) return;
   if (!inYear(date)) { toast(`Wünsche können nur für ${JAHR} eingetragen werden.`, "err"); return; }
@@ -1317,10 +1354,12 @@ function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
     if (ov) errs.push(`Überschneidet sich mit dem Wunsch ${wishLabel(ov)}.`);
     const sp = sperrIn(who, { start, end });
     if (sp) errs.push(`Enthält den Sperrtag «${sperrName(sp)}» (${fmtDate(sp)}) – an diesem Tag keine Ferien möglich.`);
+    const sch = schoolRule(who, { start, end });
+    if (sch) errs.push(sch);
     const sat = saturdayRule(who, { start, end });
     if (sat) errs.push(sat);
   }
-  if (days > p.tage) errs.push(`Mehr Tage als Guthaben (${days} > ${p.tage}).`);
+  if (over(days, p.tage)) errs.push(`Mehr Tage als Guthaben (${String(days).replace(".", ",")} > ${String(p.tage).replace(".", ",")}).`);
   const mustMax = mustLimit(who), mustUsed = mine.filter(w => w.prio === "must").reduce((s, w) => s + wishDays(w), 0);
   const mustBlocked = mustUsed >= mustMax;
   const f2 = n => String(Math.round(n * 100) / 100).replace(".", ",");
@@ -1329,8 +1368,8 @@ function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
   const wished = mine.reduce((s, w) => s + wishDays(w), 0);
   const core = mine.filter(w => w.prio !== "p2").reduce((s, w) => s + wishDays(w), 0);
   const fmtN = n => String(Math.round(n * 100) / 100).replace(".", ",");
-  if (prio !== "p2" && core + days > p.tage)
-    errs.push(`Must + Prio 1 zusammen dürfen das Guthaben nicht überschreiten (${fmtN(core + days)} > ${fmtN(p.tage)} Tage). Diesen Wunsch als Prio 2 (Reserve) eintragen.`);
+  if (prio !== "p2" && over(core + days, p.tage))
+    errs.push(`Must + Prio 1 zusammen dürfen das Guthaben höchstens um weniger als 1 Tag überschreiten (${fmtN(core + days)} > ${fmtN(p.tage)} Tage). Diesen Wunsch als Prio 2 (Reserve) eintragen.`);
   infos.push(`Must + Prio 1: ${fmtN(core + (prio !== "p2" ? days : 0))} von ${fmtN(p.tage)} Tagen · total inkl. Reserve: ${fmtN(wished + days)}`);
   if (prio === "p2" && wished + days > p.tage) infos.push("Hinweis: Prio-2-Wünsche über dem Guthaben gelten als Reserve und werden nur zugeteilt, wenn ein anderer Wunsch nicht klappt");
   const hits = (state.cfg.limits || []).filter(l => l.start <= end && start <= l.end && (l.gruppe === "Alle" || l.gruppe === p.gruppe));
@@ -1362,6 +1401,7 @@ function renderActionBar() {
 }
 async function saveWish() {
   if (state.busy) return;
+  if (!canEdit()) { toast("Eingabeschluss erreicht – Wünsche können nicht mehr geändert werden.", "err"); clearSelection(); return; }
   const who = targetName(), { start, end } = state.sel;
   const flex = state.mode === "flex";
   const r = analyse(start, end, who, state.prio, null, flex ? state.flexLen : 0);
@@ -1382,7 +1422,7 @@ async function saveWish() {
 /* Darf die angemeldete Person diesen eigenen Wunsch noch ändern/löschen? */
 function staffCanChange(w) {
   return w.name === state.user && w.status === "offen" &&
-    (state.cfg.phase === "wuensche" || (state.cfg.phase === "runde2" && isR2(w)));
+    (r1Open() || (r2Open() && isR2(w)));
 }
 function openEdit(id) {
   const w = state.wishes.find(x => x.id === id); if (!w) return;
@@ -1432,7 +1472,7 @@ async function saveEdit() {
   }
   const r = analyse(start, end, w.name, upd.prio, w.id, isFlex(w) ? upd.len : 0);
   // Admin darf Regeln übersteuern, Mitarbeitende nicht
-  const hard = admin ? r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Samstage") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1")) : r.errs;
+  const hard = admin ? r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Samstage") && !e.includes("Lernende") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1")) : r.errs;
   if (hard.length) { toast("❌ " + esc(hard.join(" ")), "err", 8000); return; }
   try { await backend.setWish(upd); toast("💾 Gespeichert."); closeEdit(); }
   catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
@@ -1460,7 +1500,7 @@ async function moveWish(id, delta) {
     upd = { ...w, start: addDays(w.start, delta), end: addDays(w.end, delta) };
     if (!isFlex(w)) upd.orig = keepOrig(w, upd.start, upd.end);
     const r = analyse(upd.start, upd.end, w.name, w.prio, w.id, isFlex(w) ? Number(w.len) : 0);
-    const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Keine Arbeitstage") && !e.includes("Samstage") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1"));
+    const hard = r.errs.filter(e => !e.includes("Must-Wunsch") && !e.includes("Keine Arbeitstage") && !e.includes("Samstage") && !e.includes("Lernende") && !e.includes("Sperrtag") && !e.includes("Must + Prio 1"));
     if (hard.length) { toast("❌ Verschieben nicht möglich: " + esc(hard.join(" ")), "err", 7000); renderGantt(); return; }
   }
   try {
@@ -1498,14 +1538,22 @@ function ampel(name, d, absentMap) {
 }
 function renderBanners() {
   const ph = state.cfg.phase;
-  const txt = ph === "wuensche" ? `📝 <b>Wunschphase offen bis ${EINGABE_BIS}:</b> Tragen Sie hier Ihre Ferienwünsche ein. Andere sehen Ihre Wünsche nicht. Bitte beachten: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
+  const fmtStop = t => t ? new Date(t).toLocaleString("de-CH", { timeZone: "Europe/Zurich", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  const stop = fmtStop(state.cfg.eingabeschluss);
+  const txt = ph === "wuensche" && r1Locked() ? `🔒 <b>Eingabeschluss erreicht</b> (${stop} Uhr): Wünsche können nicht mehr geändert werden. Die Ferien werden jetzt verteilt.`
+    : ph === "wuensche" ? `📝 <b>Wunschphase offen bis ${EINGABE_BIS}:</b> Tragen Sie hier Ihre Ferienwünsche ein. Andere sehen Ihre Wünsche nicht. Bitte beachten: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
     : ph === "geschlossen" ? "🔒 <b>Wunschphase geschlossen:</b> Die Ferien werden jetzt verteilt. Änderungen nur noch über die Teamleitung."
+    : ph === "runde2" && r2Locked() && !state.isAdmin ? `🔒 <b>Eingabeschluss Runde 2 erreicht</b> (${fmtStop(state.cfg.eingabeschluss2)} Uhr): Wünsche können nicht mehr geändert werden.`
     : ph === "runde2" ? (state.isAdmin ? "🔁 <b>Runde 2 offen:</b> Personen mit abgelehnten Wünschen können neue Wünsche eintragen. Die Ampel im Kalender zeigt, wo für die gewählte Person noch Platz ist."
-        : hasLost(state.user) ? `🔁 <b>Runde 2:</b> Einige Ihrer Wünsche konnten nicht zugeteilt werden. Tragen Sie neue Wünsche ein. Die Ampel im Kalender zeigt, wo noch Platz ist: <b style="color:#15803d">grün</b> = frei, <b style="color:#b45309">orange</b> = knapp, <b style="color:#dc2626">rot</b> = nicht möglich. Restguthaben: <b>${String(restDays(state.user)).replace(".", ",")} Tage</b>.`
+        : hasLost(state.user) ? `🔁 <b>Runde 2${state.cfg.eingabeschluss2 ? ` – offen bis ${fmtStop(state.cfg.eingabeschluss2)} Uhr` : ""}:</b> Einige Ihrer Wünsche konnten nicht zugeteilt werden. Tragen Sie neue Wünsche ein. Die Ampel im Kalender zeigt, wo noch Platz ist: <b style="color:#15803d">grün</b> = frei, <b style="color:#b45309">orange</b> = knapp, <b style="color:#dc2626">rot</b> = nicht möglich. Restguthaben: <b>${String(restDays(state.user)).replace(".", ",")} Tage</b>.`
         : "🔁 <b>Runde 2:</b> Ihre Wünsche aus Runde 1 sind alle zugeteilt. Runde 2 betrifft nur Personen mit abgelehnten Wünschen.")
     : "📢 <b>Ferienplan veröffentlicht:</b> Im Kalender sehen Sie die bestätigten Ferien aller.";
   $("phaseText").innerHTML = txt; $("phaseBanner").classList.toggle("on", !!state.user);
   $("phaseSelect").value = ph;
+  $("deadlineInput").value = state.cfg.eingabeschluss || "";
+  $("deadline2Input").value = state.cfg.eingabeschluss2 || "";
+  $("deadline2Info").textContent = !state.cfg.eingabeschluss2 ? "kein Eingabeschluss gesetzt" : r2Locked() ? "🔒 erreicht – Team kann in Runde 2 nichts mehr ändern" : "noch offen";
+  $("deadlineInfo").textContent = !state.cfg.eingabeschluss ? "kein Eingabeschluss gesetzt" : r1Locked() ? "🔒 erreicht – Team kann in Runde 1 nichts mehr ändern" : "noch offen";
   $("maxMustInput").value = state.cfg.mustWochen ?? 2;
   $("nsWeeksInput").value = state.cfg.nebensaisonWochen ?? 2;
   const sr = state.cfg.samstagRegel || {};
@@ -1540,7 +1588,7 @@ function renderBalance() {
     tile("t-ok", granted.length, "zugeteilt", granted.length ? tg(gDays) + (cDays ? ` · ${f1(cDays)} bestätigt` : "") : "") +
     tile("t-open", open.length, "offen", open.length ? tg(oDays) : "") +
     tile("t-rej", rej.length, "abgelehnt", "") +
-    tile("t-rest", f1(rest), "Restguthaben", `von ${tgD(p.tage)}`) + `</div>` +
+    tile("t-rest", f1(rest), "Restguthaben", Math.abs(rest) < 1 && gDays > 0 ? (rest < -0.001 ? "✓ verplant (Minus → nächstes Jahr)" : "✓ verplant") : `von ${tgD(p.tage)}`) + `</div>` +
     `<div class="gbar"><div style="width:${pc(cDays)}%;background:#15803d"></div><div style="width:${pc(gDays - cDays)}%;background:#86efac"></div></div>` +
     `<div class="gbar-l">${f1(gDays)} von ${tgD(p.tage)} zugeteilt${cDays ? ` (davon ${f1(cDays)} bestätigt)` : ""}</div>`;
 
@@ -1551,13 +1599,18 @@ function renderBalance() {
   const ns = nsDays(who, false), nsReq = nsRequired(who);
   const ranges = active.map(w => ({ w, r: effRange(w) || (isFlex(w) ? null : { start: w.start, end: w.end }) })).filter(x => x.r);
   const satHit = ranges.find(x => saturdayRule(who, x.r));
+  // Verplant = zugeteilte Tage + offene Must/Prio-1-Wünsche. Weniger als 1 Tag Rest gilt als vollständig verplant.
+  const planned = gDays + sum(all.filter(w => w.status === "offen" && w.prio !== "p2"));
+  const left = p.tage - planned;
   const rules = [
+    [left < 1 ? (left > -1 ? true : false) : "warn", "Guthaben verplant (± unter 1 Tag ist ok)",
+      left >= 1 ? `noch ${f1(left)} offen` : left <= -1 ? `${f1(-left)} zu viel` : left > 0.001 ? `ok, Rest ${f1(left)}` : left < -0.001 ? `ok, Minus ${f1(-left)}` : "ok"],
     [must <= mustMax, "⭐ Must max. " + f1(Number(state.cfg.mustWochen ?? 2)) + " Wochen", `${f1(must)} / ${f1(mustMax)}`],
     [ns >= nsReq, `Nebensaison (Jan–März, Okt–Dez) min. ${f1(Number(state.cfg.nebensaisonWochen ?? 2))} Wochen`, `${f1(ns)} / ${f1(nsReq)}`],
     [!satHit, "Saison: pro Ferienwoche max. 1 Samstag", satHit ? fmtRange(satHit.r.start, satHit.r.end) : "ok"]
   ];
   const ruleList = `<h4>Regeln</h4><ul class="rules">` +
-    rules.map(([ok, t, v]) => `<li class="${ok ? "ok" : "bad"}"><span class="ic">${ok ? "✓" : "✗"}</span><span>${esc(t)}</span><span class="v">${esc(v)}</span></li>`).join("") +
+    rules.map(([ok, t, v]) => `<li class="${ok === "warn" ? "warn" : ok ? "ok" : "bad"}"><span class="ic">${ok === "warn" ? "!" : ok ? "✓" : "✗"}</span><span>${esc(t)}</span><span class="v">${esc(v)}</span></li>`).join("") +
     `</ul>`;
   $("balanceBody").innerHTML = `<div>${tiles}</div><div>${ruleList}</div>`;
 }
@@ -1601,7 +1654,7 @@ function renderCalendar() {
     }).join("");
     const schStart = sch && (d.getDate() === 1 || schoolName(addDays(cur, -1)) !== sch);
     html += `<div class="${cls.join(" ")}" data-date="${cur}"${amp ? ` title="Runde 2: ${amp.tip}"` : ""}><span class="num">${d.getDate()}</span>
-      ${hol ? `<span class="hol-name">${esc(hol)}</span>` : ""}${sp ? `<span class="sperr-name">⛔ ${esc(sp)}</span>` : ""}${schStart ? `<span class="school-name">${esc(sch)}</span>` : ""}${isFree ? `<span class="free-name">${state.isAdmin && freeFor !== state.user ? esc(freeFor) + " " : ""}frei</span>` : ""}${chips}</div>`;
+      ${hol ? `<span class="hol-name">${esc(hol)}</span>` : ""}${sp ? `<span class="sperr-name">⛔ ${esc(sp)}</span>` : ""}${schStart ? `<span class="school-name">${esc(sch)}</span>` : ""}${isFree ? `<span class="free-name">${state.isAdmin && freeFor !== state.user ? esc(freeFor) + " " : ""}${PERSON[freeFor]?.schule?.includes(d.getDay()) && !freeDaysOn(PERSON[freeFor], cur).includes(d.getDay()) ? "Schule" : "frei"}</span>` : ""}${chips}</div>`;
     cur = addDays(cur, 1);
   }
   $("calGrid").innerHTML = html;
@@ -1708,8 +1761,8 @@ function personStats(p) {
   const f1 = n => String(Math.round(n * 100) / 100).replace(".", ",");
   if (!all.length) st.issues.push(["warn", "noch keine Wünsche"]);
   if (st.must > mustLimit(p.name)) st.issues.push(["bad", `Must ${f1(st.must)} > max. ${f1(mustLimit(p.name))}`]);
-  if (st.must + st.p1 > p.tage) st.issues.push(["bad", `Must + Prio 1 ${f1(st.must + st.p1)} > Guthaben`]);
-  if (st.got > p.tage) st.issues.push(["bad", `zugeteilt ${f1(st.got)} > Guthaben`]);
+  if (over(st.must + st.p1, p.tage)) st.issues.push(["bad", `Must + Prio 1 ${f1(st.must + st.p1)} > Guthaben`]);
+  if (over(st.got, p.tage)) st.issues.push(["bad", `zugeteilt ${f1(st.got)} > Guthaben`]);
   if (all.length && st.ns < st.nsReq) st.issues.push(["bad", `Nebensaison ${f1(st.ns)} von min. ${f1(st.nsReq)}`]);
   else if (st.got && st.nsGot < st.nsReq) st.issues.push(["warn", `Nebensaison zugeteilt erst ${f1(st.nsGot)} von ${f1(st.nsReq)}`]);
   const { res } = liveConflicts();
@@ -1752,9 +1805,9 @@ function renderAdminTable() {
         <td class="r">${f1(p.tage)}</td>
         <td class="r" style="${st.must > mustLimit(p.name) ? "color:#dc2626;font-weight:800" : ""}">${f1(st.must)}</td>
         <td class="r">${f1(st.p1)}</td><td class="r">${f1(st.p2)}</td>
-        <td class="r" style="font-weight:700;${st.got > p.tage ? "color:#dc2626" : "color:#15803d"}">${f1(st.got)}</td>
+        <td class="r" style="font-weight:700;${over(st.got, p.tage) ? "color:#dc2626" : "color:#15803d"}">${f1(st.got)}</td>
         <td class="r">${f1(st.conf)}</td>
-        <td class="r" style="color:#1d4ed8;font-weight:700">${String(Math.round(st.rest * 100) / 100).replace(".", ",")}</td>
+        <td class="r" style="font-weight:700;color:${Math.abs(st.rest) < 1 && st.got > 0 ? "#15803d" : "#1d4ed8"}" title="${Math.abs(st.rest) < 1 && st.got > 0 ? "verplant (± unter 1 Tag)" : ""}">${Math.abs(st.rest) < 1 && st.got > 0 ? "✓ " : ""}${String(Math.round(st.rest * 100) / 100).replace(".", ",")}</td>
         <td class="r">${st.open || "–"}</td>
         <td class="r" style="${st.rej ? "color:#b91c1c;font-weight:700" : ""}">${st.rej || "–"}</td>
         <td class="r" style="color:${nsOk ? "#15803d" : "#dc2626"};font-weight:700">${nsOk ? "✓" : "✗"} ${f1(st.ns)}/${f1(st.nsReq)}</td>
@@ -1803,18 +1856,20 @@ function renderStatic() {
 function renderTeam() {
   if (state.tab !== "team") return;
   const box = (i, list, b) => [1, 2, 3, 4, 5, 6].map(x => `<label title="${WT_NAMEN[x]}" style="display:inline-flex;flex-direction:column;align-items:center;font-size:11px;margin-right:2px">${WT_NAMEN[x]}<input type="checkbox" data-i="${i}" data-free="${x}" data-b="${b}" ${list.includes(x) ? "checked" : ""}></label>`).join("");
-  let h = `<tr><th>Name</th><th>Kürzel</th><th>Gruppe</th><th>Pensum %</th><th>Ferientage</th><th>Rolle</th><th>Freie Tage</th><th title="Diese Wochentage werden nur als halber Ferientag abgezogen">Halber Tag</th><th>Arbeitstage/Woche</th><th></th></tr>`;
+  let h = `<tr><th>Name</th><th>Kürzel</th><th>Gruppe</th><th>Pensum %</th><th title="Ferientage bei 5 Arbeitstagen pro Woche (25 / 27,5 / 30)">Anspruch</th><th title="Basis ÷ 5 × Arbeitstage pro Woche">Ferientage</th><th>Rolle</th><th>Freie Tage</th><th title="Diese Wochentage werden nur als halber Ferientag abgezogen">Halber Tag</th><th title="Lernende: Schultage. In den Schulferien sind es Arbeitstage; Ferien nur in den Schulferien.">Schule</th><th>Arbeitstage/Woche</th><th></th></tr>`;
   MITARBEITENDE.forEach((p, i) => {
     h += `<tr><td><span class="dot-c" style="background:${p.color}"></span><input data-i="${i}" data-f="name" value="${esc(p.name)}" style="width:110px"></td>
       <td><input data-i="${i}" data-f="kuerzel" value="${esc(p.kuerzel)}" style="width:60px;text-transform:uppercase"></td>
       <td><select data-i="${i}" data-f="gruppe">${GRUPPEN.map(g => `<option ${g === p.gruppe ? "selected" : ""}>${g}</option>`).join("")}</select></td>
       <td><input type="number" min="5" max="100" step="5" data-i="${i}" data-f="pensum" value="${p.pensum}" style="width:64px"></td>
-      <td><input type="number" min="0" max="60" step="0.5" data-i="${i}" data-f="tage" value="${p.tage}" style="width:64px"></td>
+      <td><input type="number" min="0" max="60" step="0.5" data-i="${i}" data-f="basis" value="${p.basis ?? ""}" placeholder="–" style="width:64px"></td>
+      <td class="r"><b>${String(p.tage).replace(".", ",")}</b>${p.basis == null ? ' <span class="hint">(fix)</span>' : ""}</td>
       <td><select data-i="${i}" data-f="rolle"><option value="" ${!p.rolle ? "selected" : ""}>–</option><option value="TL" ${p.rolle === "TL" ? "selected" : ""}>TL</option><option value="Stv" ${p.rolle === "Stv" ? "selected" : ""}>Stv</option></select></td>
       <td style="white-space:nowrap">${p.freiB ? `<span class="hint">gerade KW:</span> ` : ""}${box(i, p.frei, 0)}
         ${p.freiB ? `<br><span class="hint">ungerade KW:</span> ${box(i, p.freiB, 1)}` : ""}
         <br><label class="hint"><input type="checkbox" data-i="${i}" data-f="wechsel" ${p.freiB ? "checked" : ""}> im Wechsel (gerade/ungerade KW)</label></td>
       <td style="white-space:nowrap">${box(i, p.halb, 2)}</td>
+      <td style="white-space:nowrap">${box(i, p.schule, 3)}</td>
       <td class="r">${String(perWeek(p.name)).replace(".", ",")}</td>
       <td>${p.name === ADMIN_NAME ? "" : `<button class="x-btn" data-del-person="${i}" title="Person entfernen">×</button>`}</td></tr>`;
   });
@@ -1825,7 +1880,7 @@ async function onTeamChange(e) {
   const el = e.target, i = Number(el.dataset.i); if (Number.isNaN(i)) return;
   const people = peopleForSave(), p = people[i];
   if (el.dataset.free) {
-    const key = el.dataset.b === "1" ? "freiB" : el.dataset.b === "2" ? "halb" : "frei";
+    const key = el.dataset.b === "1" ? "freiB" : el.dataset.b === "2" ? "halb" : el.dataset.b === "3" ? "schule" : "frei";
     const set = new Set(p[key] || []); el.checked ? set.add(Number(el.dataset.free)) : set.delete(Number(el.dataset.free));
     p[key] = [...set].sort();
   } else if (el.dataset.f === "wechsel") {
@@ -1840,6 +1895,8 @@ async function onTeamChange(e) {
     await saveConfig({ people, pairs: (state.cfg.pairs || []).map(x => ({ ...x, a: x.a === old ? nn : x.a, b: x.b === old ? nn : x.b })),
       vorrang: (state.cfg.vorrang || []).map(n => n === old ? nn : n) });
     return;
+  } else if (el.dataset.f === "basis") {
+    if (el.value === "") { delete p.basis; } else { p.basis = Math.max(0, Number(el.value) || 0); }
   } else if (["pensum", "tage"].includes(el.dataset.f)) {
     p[el.dataset.f] = Math.max(0, Number(el.value) || 0);
   } else {
@@ -1860,7 +1917,7 @@ async function addPerson() {
   if (!name || !kuerzel) { toast("Bitte Name und Kürzel eingeben.", "err"); return; }
   if (PERSON[name]) { toast("Diesen Namen gibt es schon.", "err"); return; }
   const people = peopleForSave();
-  people.push({ name, kuerzel, gruppe: $("newGruppe").value, pensum: 100, tage: 25, rolle: "", frei: [], freiB: null });
+  people.push({ name, kuerzel, gruppe: $("newGruppe").value, pensum: 100, basis: 25, rolle: "", frei: [], freiB: null });
   await saveConfig({ people });
   $("newName").value = ""; $("newKuerzel").value = "";
   toast(`➕ ${esc(name)} hinzugefügt – bitte Pensum, Ferientage und freie Tage ergänzen.`, "info");
@@ -1970,6 +2027,10 @@ function bindEvents() {
   $("editModal").addEventListener("click", e => { if (e.target === $("editModal")) closeEdit(); });
 
   $("phaseSelect").addEventListener("change", () => saveConfig({ phase: $("phaseSelect").value }));
+  $("deadlineInput").addEventListener("change", () => saveConfig({ eingabeschluss: $("deadlineInput").value || "" }));
+  $("deadline2Input").addEventListener("change", () => saveConfig({ eingabeschluss2: $("deadline2Input").value || "" }));
+  // Bei offener Seite: zum Eingabeschluss automatisch sperren
+  setInterval(() => { if (!state.isAdmin && (state.cfg.eingabeschluss || state.cfg.eingabeschluss2)) { const was = state._locked; state._locked = r1Locked() + "/" + r2Locked(); if (was !== state._locked) { clearSelection(); renderAll(); } } }, 30000);
   $("maxMustInput").addEventListener("change", () => saveConfig({ mustWochen: Math.max(0, Math.round((Number($("maxMustInput").value) || 0) * 2) / 2) }));
   $("nsWeeksInput").addEventListener("change", () => saveConfig({ nebensaisonWochen: Math.max(0, Number($("nsWeeksInput").value) || 0) }));
   const saveSat = () => {
