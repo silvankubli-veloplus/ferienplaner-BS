@@ -69,7 +69,15 @@
   .rules li:last-child { border-bottom: none; }
   .rules .ic { font-weight: 800; width: 18px; flex-shrink: 0; text-align: center; }
   .rules .ok .ic { color: #15803d; } .rules .bad .ic { color: #dc2626; } .rules .info .ic { color: #6b7280; }
-  .rules .bad { color: #991b1b; } .rules .v { margin-left: auto; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rules .bad { color: #991b1b; }
+  table.ptable { min-width: 980px; font-size: 13px; }
+  table.ptable tr[data-person] { cursor: pointer; }
+  table.ptable tr[data-person]:hover td { background: #f8fafc; }
+  table.ptable tr.has-bad td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
+  table.ptable tr.grp-row td { background: #f1f5f9; font-weight: 800; }
+  table.ptable td.iss { min-width: 260px; }
+  table.ptable td.iss span { display: block; font-size: 12px; line-height: 1.35; }
+  .iss-bad { color: #b91c1c; } .iss-warn { color: #b45309; } .iss-ok { color: #15803d; } .rules .v { margin-left: auto; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
 
   .tabs { margin: 16px 20px 0; display: none; gap: 8px; }
   body.is-admin .tabs { display: flex; }
@@ -229,6 +237,25 @@
   .action-bar .btn.secondary { background: #374151; color: #fff; }
   .action-bar #saveWishBtn { background: #16a34a; padding: 12px 20px; }
   .action-bar #saveWishBtn:disabled { background: #6b7280; }
+  @media (max-width: 700px) {
+    .action-bar { position: fixed; top: auto; bottom: 0; left: 0; right: 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      gap: 8px; border-top: 3px solid #f59e0b; box-shadow: 0 -6px 20px rgba(0,0,0,.25); }
+    .action-bar .info { flex: 1 1 100%; }
+    .action-bar .info strong { font-size: 14px; }
+    .action-bar .sub { font-size: 12px; }
+    .prio-pick { flex: 1 1 100%; flex-wrap: nowrap; }
+    .prio-pick button { flex: 1; padding: 7px 6px; font-size: 13px; }
+    .prio-pick input { width: 52px; padding: 6px; }
+    .action-bar #cancelSelBtn { flex: 0 0 auto; padding: 10px 12px; }
+    .action-bar #saveWishBtn { flex: 1; padding: 10px 12px; }
+    body.sel-on { padding-bottom: 240px; }
+    .tabs { flex-wrap: wrap; gap: 6px; }
+    .tab { padding: 6px 10px; font-size: 13px; }
+    .inline-check { flex-wrap: wrap; }
+    .wk-l { display: none; }
+    .chip.own .cn { display: none; }
+    .chip.own { justify-content: center; }
+  }
 
   .modal-back { position: fixed; inset: 0; background: rgba(17,24,39,.55); z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px; }
   .modal-back.on { display: flex; }
@@ -271,7 +298,7 @@
     <div class="prio-pick" id="modePick">
       <button data-mode="fix" title="Genau diese Tage">📌 Genau diese Tage</button>
       <button data-mode="flex" title="Irgendwo in diesem Zeitraum">🔀 Flexibel:</button>
-      <input type="number" id="flexLen" min="1" max="10" step="1" value="1" title="Anzahl Kalenderwochen innerhalb des Zeitraums"> <span style="font-size:13px;color:#cbd5e1">Woche(n)</span>
+      <input type="number" id="flexLen" min="1" max="10" step="1" value="1" title="Anzahl Kalenderwochen innerhalb des Zeitraums"> <span class="wk-l" style="font-size:13px;color:#cbd5e1">Woche(n)</span>
     </div>
     <div class="prio-pick" id="prioPick">
       <button data-prio="must" class="must" title="Höchste Priorität – wird vor allen anderen Wünschen verteilt">⭐ Must</button>
@@ -301,6 +328,7 @@
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="kalender">📅 Kalender</button>
     <button class="tab" data-tab="uebersicht">📊 Übersicht &amp; Planung</button>
+    <button class="tab" data-tab="personen">📋 Personen</button>
     <button class="tab" data-tab="team">👥 Team</button>
   </div>
 
@@ -327,6 +355,13 @@
       <div class="gantt-wrap"><table class="gantt" id="gantt"></table></div>
     </section>
 
+    <section class="card hidden" id="personCard">
+      <h2>Übersicht pro Person</h2>
+      <div id="personSummary"></div>
+      <p class="hint" style="margin:12px 0 8px">Tage = Ferientage (Arbeitstage der Person). Must/Prio ohne abgelehnte Wünsche. «Nebens.» = gewünschte Tage in Jan–März + Okt–Dez / Minimum. Zeile anklicken = Kalender dieser Person.</p>
+      <div class="gantt-wrap"><table class="bal ptable" id="balTable"></table></div>
+    </section>
+
     <section class="card hidden" id="teamCard">
       <h2>Team: Guthaben, Pensum &amp; freie Tage</h2>
       <p class="hint">Änderungen werden sofort gespeichert. Abgezogen werden pro Person nur ihre <b>Arbeitstage</b> (Mo–Sa ohne freie Tage, ohne Feiertage). Bei «Halber Tag» angekreuzte Wochentage zählen nur ½. Wer im Wechsel frei hat: «im Wechsel» ankreuzen und die freien Tage für gerade und ungerade Kalenderwochen setzen. Das Kürzel ist das Passwort der Person.</p>
@@ -339,6 +374,9 @@
           <div class="field" style="margin:0"><label>Gruppe</label><select id="newGruppe"></select></div>
           <button class="btn small" id="addPersonBtn">+ Hinzufügen</button>
         </div>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn secondary small" id="loadTeamBtn">↻ Team aus Datei laden (ersetzt Team)</button>
       </div>
     </section>
 
@@ -377,15 +415,20 @@
           <button class="btn secondary" id="runde2Btn">🔁 Runde 2 starten</button>
           <button class="btn green" id="confirmAllBtn">✔ Zugeteilte bestätigen</button>
           <button class="btn secondary" id="exportBtn">⬇ CSV-Export</button>
+          <button class="btn secondary" id="undoBtn">↩ Verteilung rückgängig</button>
         </div>
         <p class="hint" style="margin-top:10px">«Fair verteilen» verteilt alle <b>nicht bestätigten</b> Wünsche neu: zuerst alle ⭐ Must, dann Prio 1, dann Prio 2. Reihenfolge der Personen per Los, jede Runde umgekehrt (Schlangenprinzip). Flexible Wünsche bekommen den Platz im Zeitfenster, wo am wenigsten Leute weg sind. Bestätigte Ferien bleiben fix.<br><b>Runde 2:</b> Nach Runde 1 (und deinen Verschiebungen) «Runde 2 starten». Dann bleibt alles aus Runde 1 fix; nur Personen mit Ablehnungen tragen neu ein und sehen eine Ampel. «Fair verteilen» verteilt danach nur die Wünsche aus Runde 2 – wer am meisten verloren hat, zuerst.</p>
         <div id="lastRun"></div>
+        <h3>Sicherung</h3>
+        <div class="btn-row">
+          <button class="btn secondary small" id="backupBtn">💾 Backup herunterladen</button>
+          <button class="btn secondary small" id="restoreBtn">♻️ Backup wiederherstellen</button>
+          <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
+          <button class="btn danger small" id="resetWishesBtn">🧹 Alle Wünsche löschen</button>
+        </div>
+        <p class="hint" style="margin-top:6px">Firebase (Gratis-Plan) macht keine automatischen Backups. Am besten vor und nach jeder Verteilung ein Backup herunterladen.</p>
       </div>
 
-      <div class="card admin-only">
-        <h2>Guthaben &amp; Wünsche</h2>
-        <table class="bal" id="balTable"></table>
-      </div>
 
       <div class="card admin-only">
         <h2>Regeln</h2>
@@ -538,7 +581,7 @@ const firebaseConfig = {
    2) EINSTELLUNGEN
    ===================================================================== */
 const JAHR = 2027;
-const EINGABE_BIS = "31.12.2026";             // wird im Hinweis fürs Team angezeigt
+const EINGABE_BIS = "13. Dezember 2026";     // Frist Runde 1, wird im Hinweis fürs Team angezeigt
 const ADMIN_NAME = "Silvan";
 const ADMIN_PIN = "31174";                     // ⚠️ vor dem Einsatz ändern (mind. 6 Zeichen)
 const FIREBASE_VERSION = "10.12.2";
@@ -548,12 +591,32 @@ const GRUPPEN = ["Verkauf", "Clinic"];
    frei = reguläre freie Tage (1=Mo … 6=Sa). Wer im Wechsel frei hat: freiB = freie Tage in ungeraden KW.
    rolle: "TL" (Teamleitung) / "Stv" (Stellvertretung) → nie gleichzeitig weg.
    ⚠️ Pensum und Ferientage sind vorläufig (aus den Arbeitstagen abgeleitet) – im Reiter «Team» prüfen. */
+// Ferientage = Basis × Pensum: Basis 25 Tage; 27,5 Tage für Sven, Patrick, Susan, Andreas, Jacqueline; 30 Tage für Silvan, Raymond.
+// ⚠️ Mit «PRÜFEN» markierte Angaben (Pensum / freie Tage) sind unsicher oder fehlen – im Reiter «Team» kontrollieren.
+const ft = (basis, pensum) => Math.round(basis * pensum) / 100;
 const START_TEAM = [
-  { name: "Silvan", kuerzel: "SKB", tage: 25, pensum: 100, gruppe: "Verkauf", rolle: "TL",  frei: [5] },
-  { name: "Sven",   kuerzel: "DES", tage: 25, pensum: 100, gruppe: "Verkauf", rolle: "Stv", frei: [1] },
-  { name: "Malte",  kuerzel: "MKR", tage: 20, pensum: 80,  gruppe: "Verkauf", frei: [3, 4] },
-  { name: "Sara",   kuerzel: "SLT", tage: 10, pensum: 40,  gruppe: "Verkauf", frei: [3, 4, 5, 6] },
-  { name: "Jacqueline", kuerzel: "JLE", tage: 17.5, pensum: 70, gruppe: "Verkauf", frei: [4, 5], halb: [6] }
+  { name: "Silvan",     kuerzel: "SKB", pensum: 100, tage: ft(30, 100),   gruppe: "Verkauf", rolle: "TL",  frei: [5] },
+  { name: "Sven",       kuerzel: "DES", pensum: 90,  tage: ft(27.5, 90),  gruppe: "Verkauf", rolle: "Stv", frei: [1] },
+  { name: "Patrick",    kuerzel: "BRP", pensum: 95,  tage: ft(27.5, 95),  gruppe: "Verkauf", frei: [4] },
+  { name: "Yannik",     kuerzel: "PAY", pensum: 90,  tage: ft(25, 90),    gruppe: "Verkauf", frei: [2] },          // PRÜFEN: Mi/Sa im Wechsel
+  { name: "Emanuel W.", kuerzel: "EWE", pensum: 100, tage: ft(25, 100),   gruppe: "Verkauf", frei: [1] },
+  { name: "Max",        kuerzel: "MHE", pensum: 100, tage: ft(25, 100),   gruppe: "Verkauf", frei: [] },           // PRÜFEN: Pensum, freie Tage
+  { name: "Doris",      kuerzel: "DOS", pensum: 80,  tage: ft(25, 80),    gruppe: "Verkauf", frei: [2] },          // PRÜFEN: Do/Sa im Wechsel
+  { name: "Yvonne",     kuerzel: "YMU", pensum: 70,  tage: ft(25, 70),    gruppe: "Verkauf", frei: [3, 4] },       // PRÜFEN: Sa im Wechsel
+  { name: "Jacqueline", kuerzel: "JLE", pensum: 70,  tage: ft(27.5, 70),  gruppe: "Verkauf", frei: [4, 5], halb: [6] },
+  { name: "Lars",       kuerzel: "LKO", pensum: 90,  tage: ft(25, 90),    gruppe: "Verkauf", frei: [2] },
+  { name: "Malte",      kuerzel: "MKR", pensum: 80,  tage: ft(25, 80),    gruppe: "Verkauf", frei: [3, 4] },
+  { name: "Andreas",    kuerzel: "AGA", pensum: 100, tage: ft(27.5, 100), gruppe: "Verkauf", frei: [1] },
+  { name: "Sara",       kuerzel: "SLT", pensum: 60,  tage: ft(25, 60),    gruppe: "Verkauf", frei: [3, 4, 5] },    // PRÜFEN: arbeitet Sa?
+  { name: "Eliane",     kuerzel: "ETA", pensum: 20,  tage: ft(25, 20),    gruppe: "Verkauf", frei: [1, 2, 3, 4, 5] },
+  { name: "Nevio",      kuerzel: "NCI", pensum: 100, tage: ft(25, 100),   gruppe: "Verkauf", frei: [1, 2] },       // Lernender, Mo/Di Schule
+  { name: "Susan",      kuerzel: "SCA", pensum: 100, tage: ft(27.5, 100), gruppe: "Verkauf", frei: [] },           // PRÜFEN: Pensum, freie Tage
+  { name: "Benjamin",   kuerzel: "BEH", pensum: 70,  tage: ft(25, 70),    gruppe: "Clinic",  frei: [] },           // PRÜFEN: freie Tage
+  { name: "Emanuel F.", kuerzel: "FIE", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
+  { name: "Stefano",    kuerzel: "SSA", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
+  { name: "Joel",       kuerzel: "JIS", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
+  { name: "Raymond",    kuerzel: "RRI", pensum: 100, tage: ft(30, 100),   gruppe: "Clinic",  frei: [] },           // PRÜFEN
+  { name: "Nayan",      kuerzel: "HAN", pensum: 100, tage: ft(25, 100),   gruppe: "Clinic",  frei: [] }            // PRÜFEN, Lernender
 ];
 
 /* Schulferien Basel-Stadt 2027 – Vorschlag, NICHT aus offizieller Quelle geprüft.
@@ -1027,16 +1090,76 @@ async function runDistribution() {
   const seed = Math.floor(Math.random() * 2 ** 31);
   const { result, order } = distribute(seed);
   const now = Date.now();
+  // Sicherungsstand vor der Verteilung (für «Verteilung rückgängig»)
+  const snapshot = { at: now, runde: r2 ? 2 : 1, wishes: clean(open), lastRun: state.cfg.lastRun || null };
   const updates = open.filter(w => result.has(w.id)).map(w => ({ ...w, ...result.get(w.id), updatedAt: now, by: "Verteilung" }));
   try {
     await backend.setWishes(updates);
     const ok = updates.filter(w => w.status === "zugeteilt").length;
-    await saveConfig({ lastRun: { at: now, seed, order, ok, rejected: updates.length - ok, runde: r2 ? 2 : 1 } });
+    await saveConfig({ lastRun: { at: now, seed, order, ok, rejected: updates.length - ok, runde: r2 ? 2 : 1 }, undo: snapshot });
     toast(`⚖️ Verteilt: <b>${ok}</b> zugeteilt, <b>${updates.length - ok}</b> abgelehnt. Jetzt in der Übersicht prüfen und verschieben.`, "ok", 8000);
     setTab("uebersicht");
   } catch (err) { toast("❌ Verteilung fehlgeschlagen: " + esc(friendlyError(err)), "err", 10000); }
 }
 
+async function undoDistribution() {
+  const u = state.cfg.undo;
+  if (!u || !u.wishes) { toast("Es gibt keine Verteilung, die rückgängig gemacht werden kann.", "info"); return; }
+  const at = new Date(u.at).toLocaleString("de-CH", { timeZone: "Europe/Zurich" });
+  const ids = new Set(state.wishes.map(w => w.id));
+  const back = u.wishes.filter(w => ids.has(w.id));
+  if (!confirm(`Verteilung vom ${at} rückgängig machen?\n\n${back.length} Wünsche werden auf den Stand vor dieser Verteilung zurückgesetzt – auch deine Verschiebungen seither.\nWünsche, die danach neu eingetragen wurden, bleiben unverändert.`)) return;
+  try {
+    await backend.setWishes(back);
+    await saveConfig({ lastRun: u.lastRun || null, undo: null });
+    toast("↩️ Verteilung rückgängig gemacht.", "info");
+  } catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
+function downloadBackup() {
+  const data = { app: "ferienplaner", version: 1, jahr: JAHR, exportedAt: new Date().toISOString(), config: clean(state.cfg), wishes: clean(state.wishes) };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }));
+  const t = new Date(); a.download = `ferienplaner_backup_${toIso(t)}_${pad(t.getHours())}${pad(t.getMinutes())}.json`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast("💾 Backup heruntergeladen.", "info");
+}
+async function restoreBackup(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch (e) { toast("❌ Die Datei ist kein gültiges Backup.", "err"); return; }
+  if (data?.app !== "ferienplaner" || !Array.isArray(data.wishes) || !data.config) { toast("❌ Die Datei ist kein Ferienplaner-Backup.", "err"); return; }
+  const at = new Date(data.exportedAt).toLocaleString("de-CH", { timeZone: "Europe/Zurich" });
+  if (!confirm(`Backup vom ${at} wiederherstellen?\n\n${data.wishes.length} Wünsche, Team und Regeln werden auf diesen Stand gesetzt.\nAlles, was seither geändert wurde, geht verloren.`)) return;
+  try {
+    const keep = new Set(data.wishes.map(w => w.id));
+    const del = state.wishes.filter(w => !keep.has(w.id)).map(w => w.id);
+    if (del.length) await backend.deleteWishes(del);
+    await backend.setWishes(data.wishes);
+    await saveConfig(data.config);
+    toast("♻️ Backup wiederhergestellt.", "info");
+  } catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
+async function loadStartTeam() {
+  const names = new Set(START_TEAM.map(p => p.name));
+  const orphan = state.wishes.filter(w => !names.has(w.name));
+  if (!confirm(`Team durch das Team aus der Datei ersetzen (${START_TEAM.length} Personen)?\n\nÄnderungen, die du im Reiter «Team» gemacht hast, gehen verloren.` +
+    (orphan.length ? `\n\n${orphan.length} Wünsche von Personen, die nicht mehr im Team sind, werden gelöscht.` : ""))) return;
+  try {
+    if (orphan.length) await backend.deleteWishes(orphan.map(w => w.id));
+    await saveConfig({ people: clean(START_TEAM), pairs: (state.cfg.pairs || []).filter(x => names.has(x.a) && names.has(x.b)) });
+    toast(`👥 Team geladen: ${START_TEAM.length} Personen. Bitte im Reiter «Team» prüfen.`, "info", 7000);
+  } catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
+async function resetAllWishes() {
+  const n = state.wishes.length;
+  if (!n) { toast("Es gibt keine Wünsche.", "info"); return; }
+  if (!confirm(`ALLE ${n} Wünsche löschen und auf Runde 1 / Wunschphase zurücksetzen?\n\nTeam und Regeln bleiben. Vorher am besten ein Backup herunterladen.`)) return;
+  if (prompt("Zur Sicherheit bitte LÖSCHEN eintippen:") !== "LÖSCHEN") { toast("Abgebrochen.", "info"); return; }
+  try {
+    await backend.deleteWishes(state.wishes.map(w => w.id));
+    await saveConfig({ phase: "wuensche", runde: 1, lastRun: null, undo: null });
+    toast("🧹 Alle Wünsche gelöscht. Wunschphase ist offen.", "info", 7000);
+  } catch (err) { toast("❌ " + esc(friendlyError(err)), "err", 10000); }
+}
 async function startRunde2() {
   if (inRunde2()) { toast("Runde 2 läuft bereits.", "info"); return; }
   if (!state.wishes.some(w => isGranted(w))) { toast("Bitte zuerst Runde 1 verteilen.", "err"); return; }
@@ -1200,12 +1323,12 @@ function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
   if (days > p.tage) errs.push(`Mehr Tage als Guthaben (${days} > ${p.tage}).`);
   const mustMax = mustLimit(who), mustUsed = mine.filter(w => w.prio === "must").reduce((s, w) => s + wishDays(w), 0);
   const mustBlocked = mustUsed >= mustMax;
-  const f2 = n => String(Math.round(n * 10) / 10).replace(".", ",");
+  const f2 = n => String(Math.round(n * 100) / 100).replace(".", ",");
   if (prio === "must" && mustUsed + days > mustMax)
     errs.push(`⭐ Must-Wunsch zu gross: insgesamt max. ${f2(Number(state.cfg.mustWochen ?? 2))} Wochen (${f2(mustMax)} Tage), mit diesem ${f2(mustUsed + days)} Tage. Den Rest als Prio 1 eintragen.`);
   const wished = mine.reduce((s, w) => s + wishDays(w), 0);
   const core = mine.filter(w => w.prio !== "p2").reduce((s, w) => s + wishDays(w), 0);
-  const fmtN = n => String(Math.round(n * 10) / 10).replace(".", ",");
+  const fmtN = n => String(Math.round(n * 100) / 100).replace(".", ",");
   if (prio !== "p2" && core + days > p.tage)
     errs.push(`Must + Prio 1 zusammen dürfen das Guthaben nicht überschreiten (${fmtN(core + days)} > ${fmtN(p.tage)} Tage). Diesen Wunsch als Prio 2 (Reserve) eintragen.`);
   infos.push(`Must + Prio 1: ${fmtN(core + (prio !== "p2" ? days : 0))} von ${fmtN(p.tage)} Tagen · total inkl. Reserve: ${fmtN(wished + days)}`);
@@ -1216,8 +1339,8 @@ function analyse(start, end, who, prio, ignoreId = null, flexLen = 0) {
 }
 function renderActionBar() {
   const bar = $("actionBar");
-  if (!state.sel.start || !state.user) { bar.classList.remove("on"); return; }
-  bar.classList.add("on");
+  if (!state.sel.start || !state.user) { bar.classList.remove("on"); document.body.classList.remove("sel-on"); return; }
+  bar.classList.add("on"); document.body.classList.add("sel-on");
   const who = targetName(), { start: a, end: b } = state.sel;
   const flexLen = state.mode === "flex" ? state.flexLen : 0;
   let r = analyse(a, b, who, state.prio, null, flexLen);
@@ -1354,6 +1477,7 @@ function setTab(t) {
   $("calCard").classList.toggle("hidden", t !== "kalender");
   $("ganttCard").classList.toggle("hidden", t !== "uebersicht");
   $("teamCard").classList.toggle("hidden", t !== "team");
+  $("personCard").classList.toggle("hidden", t !== "personen");
   renderAll();
 }
 function renderAll() {
@@ -1374,7 +1498,7 @@ function ampel(name, d, absentMap) {
 }
 function renderBanners() {
   const ph = state.cfg.phase;
-  const txt = ph === "wuensche" ? `📝 <b>Wunschphase offen:</b> Tragen Sie hier Ihre Ferienwünsche ein. Andere sehen Ihre Wünsche nicht. Bitte beachten: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
+  const txt = ph === "wuensche" ? `📝 <b>Wunschphase offen bis ${EINGABE_BIS}:</b> Tragen Sie hier Ihre Ferienwünsche ein. Andere sehen Ihre Wünsche nicht. Bitte beachten: mind. ${state.cfg.nebensaisonWochen ?? 2} Wochen (anteilig Pensum) in Jan–März oder Okt–Dez; in der Saison pro Ferienwoche max. 1 Samstag. Sperrtage: ${(state.cfg.sperrtage || []).map(x => `${x.name} ${fmtShort(x.start)}${x.end !== x.start ? "–" + fmtShort(x.end) : ""}`).join(", ") || "keine"}.`
     : ph === "geschlossen" ? "🔒 <b>Wunschphase geschlossen:</b> Die Ferien werden jetzt verteilt. Änderungen nur noch über die Teamleitung."
     : ph === "runde2" ? (state.isAdmin ? "🔁 <b>Runde 2 offen:</b> Personen mit abgelehnten Wünschen können neue Wünsche eintragen. Die Ampel im Kalender zeigt, wo für die gewählte Person noch Platz ist."
         : hasLost(state.user) ? `🔁 <b>Runde 2:</b> Einige Ihrer Wünsche konnten nicht zugeteilt werden. Tragen Sie neue Wünsche ein. Die Ampel im Kalender zeigt, wo noch Platz ist: <b style="color:#15803d">grün</b> = frei, <b style="color:#b45309">orange</b> = knapp, <b style="color:#dc2626">rot</b> = nicht möglich. Restguthaben: <b>${String(restDays(state.user)).replace(".", ",")} Tage</b>.`
@@ -1396,7 +1520,7 @@ function renderBalance() {
     $("balanceBody").innerHTML = ""; banner.style.borderLeftColor = "#9ca3af"; return;
   }
   const p = PERSON[who], all = state.wishes.filter(w => w.name === who);
-  const f1 = n => String(Math.round(n * 10) / 10).replace(".", ",");
+  const f1 = n => String(Math.round(n * 100) / 100).replace(".", ",");
   const tg = n => `${f1(n)} ${n === 1 ? "Tag" : "Tage"}`;
   const tgD = n => `${f1(n)} ${n === 1 ? "Tag" : "Tagen"}`;   // Dativ: «von 25 Tagen»
   const active = all.filter(w => w.status !== "abgelehnt");
@@ -1426,19 +1550,14 @@ function renderBalance() {
   const core = sum(active.filter(w => w.prio !== "p2")), reserve = sum(active.filter(w => w.prio === "p2"));
   const ns = nsDays(who, false), nsReq = nsRequired(who);
   const ranges = active.map(w => ({ w, r: effRange(w) || (isFlex(w) ? null : { start: w.start, end: w.end }) })).filter(x => x.r);
-  const sperrHit = ranges.find(x => sperrIn(who, x.r));
   const satHit = ranges.find(x => saturdayRule(who, x.r));
   const rules = [
     [must <= mustMax, "⭐ Must max. " + f1(Number(state.cfg.mustWochen ?? 2)) + " Wochen", `${f1(must)} / ${f1(mustMax)}`],
-    [core <= p.tage, "Must + Prio 1 max. Guthaben", `${f1(core)} / ${f1(p.tage)}`],
     [ns >= nsReq, `Nebensaison (Jan–März, Okt–Dez) min. ${f1(Number(state.cfg.nebensaisonWochen ?? 2))} Wochen`, `${f1(ns)} / ${f1(nsReq)}`],
-    [!sperrHit, "Keine Ferien an Sperrtagen", sperrHit ? fmtRange(sperrHit.r.start, sperrHit.r.end) : "ok"],
-    [!satHit, "Saison: pro Ferienwoche max. 1 Samstag", satHit ? fmtRange(satHit.r.start, satHit.r.end) : "ok"],
-    [gDays <= p.tage, "Zugeteilt max. Guthaben", `${f1(gDays)} / ${f1(p.tage)}`]
+    [!satHit, "Saison: pro Ferienwoche max. 1 Samstag", satHit ? fmtRange(satHit.r.start, satHit.r.end) : "ok"]
   ];
   const ruleList = `<h4>Regeln</h4><ul class="rules">` +
     rules.map(([ok, t, v]) => `<li class="${ok ? "ok" : "bad"}"><span class="ic">${ok ? "✓" : "✗"}</span><span>${esc(t)}</span><span class="v">${esc(v)}</span></li>`).join("") +
-    (reserve ? `<li class="info"><span class="ic">i</span><span>Prio 2 (Reserve, nur falls etwas nicht klappt)</span><span class="v">${f1(reserve)}</span></li>` : "") +
     `</ul>`;
   $("balanceBody").innerHTML = `<div>${tiles}</div><div>${ruleList}</div>`;
 }
@@ -1474,7 +1593,7 @@ function renderCalendar() {
       .sort((a, b) => a.r.win - b.r.win || PRIO_ORDER.indexOf(a.w.prio) - PRIO_ORDER.indexOf(b.w.prio) || NAMES.indexOf(a.w.name) - NAMES.indexOf(b.w.name));
     const chips = list.map(({ w, r }) => {
       const st = shownStatus(w), c = colorOf(w.name);
-      const cc = ["chip", "st-" + st]; if (conf.has(w.id)) cc.push("conflict"); if (!isWorkday(w.name, cur)) cc.push("free-day"); if (r.win) cc.push("flexwin");
+      const cc = ["chip", "st-" + st]; if (!state.isAdmin && w.name === state.user) cc.push("own"); if (conf.has(w.id)) cc.push("conflict"); if (!isWorkday(w.name, cur)) cc.push("free-day"); if (r.win) cc.push("flexwin");
       const showPrio = state.isAdmin || w.name === state.user;
       const tip = `${w.name} · ${wishLabel(w)} · ${PRIO_LABEL[w.prio]} · ${STATUS_LABEL[st]}` + (conf.has(w.id) ? `\n⚠️ ${conf.get(w.id)}` : "");
       return `<div class="${cc.join(" ")}" style="background-color:${c};border-color:${c}" title="${esc(tip)}" data-wish="${esc(w.id)}">
@@ -1572,19 +1691,75 @@ function renderMyWishes() {
       <span class="status ${st}">${STATUS_LABEL[st]}</span></li>`;
   }).join("");
 }
+/* Regelverstösse und Kennzahlen pro Person (für die Personen-Übersicht) */
+function personStats(p) {
+  const all = state.wishes.filter(w => w.name === p.name);
+  const active = all.filter(w => w.status !== "abgelehnt");
+  const sum = list => list.reduce((s, w) => s + wishDays(w), 0);
+  const granted = all.filter(isGranted), conf = all.filter(w => w.status === "bestaetigt");
+  const st = {
+    n: all.length,
+    must: sum(active.filter(w => w.prio === "must")), p1: sum(active.filter(w => w.prio === "p1")), p2: sum(active.filter(w => w.prio === "p2")),
+    got: granted.reduce((s, w) => s + grantedDays(w), 0), conf: conf.reduce((s, w) => s + grantedDays(w), 0),
+    open: all.filter(w => w.status === "offen").length, rej: all.filter(w => w.status === "abgelehnt").length,
+    lostR1: lostDays(p.name), ns: nsDays(p.name, false), nsGot: nsDays(p.name, true), nsReq: nsRequired(p.name), issues: []
+  };
+  st.rest = p.tage - st.got;
+  const f1 = n => String(Math.round(n * 100) / 100).replace(".", ",");
+  if (!all.length) st.issues.push(["warn", "noch keine Wünsche"]);
+  if (st.must > mustLimit(p.name)) st.issues.push(["bad", `Must ${f1(st.must)} > max. ${f1(mustLimit(p.name))}`]);
+  if (st.must + st.p1 > p.tage) st.issues.push(["bad", `Must + Prio 1 ${f1(st.must + st.p1)} > Guthaben`]);
+  if (st.got > p.tage) st.issues.push(["bad", `zugeteilt ${f1(st.got)} > Guthaben`]);
+  if (all.length && st.ns < st.nsReq) st.issues.push(["bad", `Nebensaison ${f1(st.ns)} von min. ${f1(st.nsReq)}`]);
+  else if (st.got && st.nsGot < st.nsReq) st.issues.push(["warn", `Nebensaison zugeteilt erst ${f1(st.nsGot)} von ${f1(st.nsReq)}`]);
+  const { res } = liveConflicts();
+  for (const w of active) {
+    const r = effRange(w) || (isFlex(w) ? null : { start: w.start, end: w.end });
+    if (!r) continue;
+    if (sperrIn(p.name, r)) st.issues.push(["bad", `Sperrtag in ${fmtRange(r.start, r.end)}`]);
+    if (saturdayRule(p.name, r)) st.issues.push(["bad", `Samstagsregel ${fmtRange(r.start, r.end)}`]);
+    if (isGranted(w) && res.has(w.id)) st.issues.push(["bad", `${fmtRange(r.start, r.end)}: ${res.get(w.id)}`]);
+  }
+  return st;
+}
 function renderAdminTable() {
-  const { res: conf } = liveConflicts();
-  let h = `<tr><th>Name</th><th class="r">Guth.</th><th class="r">gewünscht</th><th class="r">zugeteilt</th><th class="r" title="Ferientage (zugeteilt) in Jan–März + Okt–Dez / Minimum">Nebens.</th></tr>`;
-  for (const p of MITARBEITENDE) {
-    const mine = state.wishes.filter(w => w.name === p.name);
-    const wished = mine.reduce((s, w) => s + wishDays(w), 0);
-    const got = mine.filter(isGranted).reduce((s, w) => s + grantedDays(w), 0);
-    const rej = mine.filter(w => w.status === "abgelehnt").length, cf = mine.filter(w => conf.has(w.id)).length;
-    const ns = nsDays(p.name, true), nsReq = nsRequired(p.name);
-    h += `<tr><td><span class="dot-c" style="background:${p.color}"></span>${esc(p.name)} <span class="hint">${esc(p.gruppe)} ${p.pensum}%${p.rolle ? " · " + esc(p.rolle) : ""}</span>
-      ${rej ? `<span class="status abgelehnt">${rej} abgel.</span>` : ""}${cf ? ` <span class="status abgelehnt">⚠️ ${cf}</span>` : ""}</td>
-      <td class="r">${p.tage}</td><td class="r">${wished}</td><td class="r" style="${got > p.tage ? "color:#dc2626;font-weight:800" : ""}">${got}</td>
-      <td class="r" style="${ns < nsReq ? "color:#b45309;font-weight:800" : "color:#15803d"}">${ns}/${nsReq}</td></tr>`;
+  if (state.tab !== "personen") return;
+  const f1 = n => n ? String(Math.round(n * 100) / 100).replace(".", ",") : "–";
+  const rows = MITARBEITENDE.map(p => ({ p, st: personStats(p) }));
+  const none = rows.filter(x => !x.st.n).map(x => x.p.name);
+  const nsMiss = rows.filter(x => x.st.n && x.st.ns < x.st.nsReq).map(x => x.p.name);
+  const withBad = rows.filter(x => x.st.issues.some(i => i[0] === "bad")).map(x => x.p.name);
+  const tot = k => rows.reduce((s, x) => s + x.st[k], 0);
+  $("personSummary").innerHTML =
+    `<div class="tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">` +
+    `<div class="tile t-ok"><div class="n">${rows.length - none.length} / ${rows.length}</div><div class="l">haben eingetragen</div></div>` +
+    `<div class="tile t-open"><div class="n">${tot("open")}</div><div class="l">offene Wünsche</div></div>` +
+    `<div class="tile ${withBad.length ? "t-rej" : "t-ok"}"><div class="n">${withBad.length}</div><div class="l">Personen mit Regelverstoss</div></div>` +
+    `<div class="tile t-rest"><div class="n">${f1(tot("got"))}</div><div class="l">Tage zugeteilt (total)</div></div></div>` +
+    `<ul class="rules" style="margin-top:10px">` +
+    `<li class="${none.length ? "bad" : "ok"}"><span class="ic">${none.length ? "✗" : "✓"}</span><span>Noch nichts eingetragen</span><span class="v">${esc(none.join(", ") || "alle haben eingetragen")}</span></li>` +
+    `<li class="${nsMiss.length ? "bad" : "ok"}"><span class="ic">${nsMiss.length ? "✗" : "✓"}</span><span>Nebensaison zu wenig gewünscht</span><span class="v">${esc(nsMiss.join(", ") || "–")}</span></li>` +
+    `<li class="${withBad.length ? "bad" : "ok"}"><span class="ic">${withBad.length ? "✗" : "✓"}</span><span>Regelverstösse</span><span class="v">${esc(withBad.join(", ") || "keine")}</span></li></ul>`;
+  let h = `<tr><th>Name</th><th class="r">Guthaben</th><th class="r">⭐ Must</th><th class="r">Prio 1</th><th class="r">Prio 2</th>
+    <th class="r">zugeteilt</th><th class="r">bestätigt</th><th class="r">Rest</th><th class="r">offen</th><th class="r">abgel.</th><th class="r">Nebens.</th><th>Hinweise / Regelverstösse</th></tr>`;
+  for (const grp of GRUPPEN) {
+    if (!rows.some(x => x.p.gruppe === grp)) continue;
+    h += `<tr class="grp-row"><td colspan="12">${esc(grp)}</td></tr>`;
+    for (const { p, st } of rows.filter(x => x.p.gruppe === grp)) {
+      const nsOk = st.ns >= st.nsReq;
+      h += `<tr data-person="${esc(p.name)}" class="${st.issues.some(i => i[0] === "bad") ? "has-bad" : ""}" title="Klicken: Kalender von ${esc(p.name)} öffnen">
+        <td><span class="dot-c" style="background:${p.color}"></span><b>${esc(p.name)}</b><br><span class="hint">${p.pensum} % · frei ${esc(freiTxt(p))}${p.rolle ? " · " + esc(p.rolle) : ""}</span></td>
+        <td class="r">${f1(p.tage)}</td>
+        <td class="r" style="${st.must > mustLimit(p.name) ? "color:#dc2626;font-weight:800" : ""}">${f1(st.must)}</td>
+        <td class="r">${f1(st.p1)}</td><td class="r">${f1(st.p2)}</td>
+        <td class="r" style="font-weight:700;${st.got > p.tage ? "color:#dc2626" : "color:#15803d"}">${f1(st.got)}</td>
+        <td class="r">${f1(st.conf)}</td>
+        <td class="r" style="color:#1d4ed8;font-weight:700">${String(Math.round(st.rest * 100) / 100).replace(".", ",")}</td>
+        <td class="r">${st.open || "–"}</td>
+        <td class="r" style="${st.rej ? "color:#b91c1c;font-weight:700" : ""}">${st.rej || "–"}</td>
+        <td class="r" style="color:${nsOk ? "#15803d" : "#dc2626"};font-weight:700">${nsOk ? "✓" : "✗"} ${f1(st.ns)}/${f1(st.nsReq)}</td>
+        <td class="iss">${st.issues.map(([k, t]) => `<span class="iss-${k}">${k === "bad" ? "✗" : "!"} ${esc(t)}</span>`).join("") || `<span class="iss-ok">✓ ok</span>`}</td></tr>`;
+    }
   }
   $("balTable").innerHTML = h;
 }
@@ -1597,6 +1772,9 @@ function renderRules() {
   $("schoolList").innerHTML = (c.schulferien || []).map((s, i) => `<li><div class="body"><b>${esc(s.name)}</b><br><span class="hint">${fmtDate(s.start)} – ${fmtDate(s.end)}</span></div><button class="x-btn" data-del-school="${i}">×</button></li>`).join("") || `<li class="empty">Keine Schulferien erfasst.</li>`;
 }
 function renderLastRun() {
+  const u = state.cfg.undo;
+  $("undoBtn").disabled = !u;
+  $("undoBtn").title = u ? `Stand vor der Verteilung vom ${new Date(u.at).toLocaleString("de-CH", { timeZone: "Europe/Zurich" })} wiederherstellen` : "Keine Verteilung zum Rückgängigmachen";
   const r = state.cfg.lastRun;
   if (!r) { $("lastRun").innerHTML = ""; return; }
   const rej = state.wishes.filter(w => w.status === "abgelehnt" && (r.runde === 2 ? isR2(w) : !isR2(w))).sort((a, b) => a.name.localeCompare(b.name));
@@ -1726,8 +1904,15 @@ function bindEvents() {
   }));
   $("tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) setTab(t.dataset.tab); });
   $("teamTable").addEventListener("change", onTeamChange);
+  $("balTable").addEventListener("click", e => {
+    const tr = e.target.closest("[data-person]"); if (!tr) return;
+    state.bookFor = tr.dataset.person; $("bookForSelect").value = state.bookFor; setTab("kalender");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
   $("teamTable").addEventListener("click", e => { const b = e.target.closest("[data-del-person]"); if (b) deletePerson(Number(b.dataset.delPerson)); });
   $("addPersonBtn").addEventListener("click", addPerson);
+  $("loadTeamBtn").addEventListener("click", loadStartTeam);
+  $("resetWishesBtn").addEventListener("click", resetAllWishes);
   for (const g of GRUPPEN) $("newGruppe").add(new Option(g, g));
 
   const grid = $("calGrid");
@@ -1795,6 +1980,10 @@ function bindEvents() {
   ["satRuleOn", "satRuleFrom", "satRuleTo"].forEach(id => $(id).addEventListener("change", saveSat));
   $("distributeBtn").addEventListener("click", runDistribution);
   $("runde2Btn").addEventListener("click", startRunde2);
+  $("undoBtn").addEventListener("click", undoDistribution);
+  $("backupBtn").addEventListener("click", downloadBackup);
+  $("restoreBtn").addEventListener("click", () => $("restoreFile").click());
+  $("restoreFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) restoreBackup(f); });
   $("confirmAllBtn").addEventListener("click", confirmAll);
   $("exportBtn").addEventListener("click", exportCsv);
 
